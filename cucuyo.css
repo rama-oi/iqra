@@ -1,0 +1,64 @@
+* {
+    outline: 1px solid #f0a;
+}
+
+cc-tabs,
+cc-toolbar,
+cc-sidebar-left,
+cc-workarea-empty,
+cc-workarea-tree,
+cc-workarea-diffs,
+cc-workarea-merge,
+cc-workarea-backlog,
+cc-sidebar-right-commit,
+cc-sidebar-right-preview {
+    display: block;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    height: 100vh;
+    display: grid;
+    grid-template-rows: 80px 1fr;
+
+    header {
+        display: flex;
+        flex-direction: column;
+
+        cc-tabs {
+            flex-grow: 1;
+        }
+        cc-toolbar {
+            flex-grow: 1;
+        }
+    }
+
+    main {
+        display: flex;
+        flex-direction: row;
+
+        aside.sidebar-left {
+            flex-basis: 300px;
+            cc-sidebar-left {}
+        }
+
+        section.workarea {
+            flex-grow: 1;
+            cc-workarea-empty {}
+            cc-workarea-tree {}
+            cc-workarea-diffs {}
+            cc-workarea-merge {}
+            cc-workarea-backlog {}
+        }
+
+        aside.sidebar-right {
+            flex-basis: 300px;
+            cc-sidebar-right-commit {}
+            cc-sidebar-right-preview {}
+        }
+    }
+}

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cucuyo</title>
+    <link href="./cucuyo.css" rel="stylesheet" />
+  </head>
+  <body>
+    <header>
+      <cc-tabs></cc-tabs>
+      <cc-toolbar></cc-toolbar>
+    </header>
+
+    <main>
+      <aside class="sidebar-left">
+        <cc-sidebar-left></cc-sidebar-left>
+      </aside>
+
+      <section class="workarea">
+        <cc-workarea-empty></cc-workarea-empty>
+        <cc-workarea-tree></cc-workarea-tree>
+        <cc-workarea-diffs></cc-workarea-diffs>
+        <cc-workarea-merge></cc-workarea-merge>
+        <cc-workarea-backlog></cc-workarea-backlog>
+      </section>
+
+      <aside class="sidebar-right">
+        <cc-sidebar-right-commit></cc-sidebar-right-commit>
+        <cc-sidebar-right-preview></cc-sidebar-right-preview>
+      </aside>
+    </main>
+  </body>
+</html>
