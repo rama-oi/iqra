@@ -1,4 +1,3 @@
-
 import { getPrefix } from "../_helpers.js";
 
 customElements.define(

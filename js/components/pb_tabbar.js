@@ -22,7 +22,9 @@ customElements.define(
           <button class="config" type="button">C</button>
         </pb-menu-config>
         <pb-menu-user>
-          <button class="config" type="button">U</button>
+          <button class="config" type="button">
+            <pb-avatar class="medium"></pb-avatar>
+          </button>
         </pb-menu-user>
       </pb-menu>
     `;
@@ -30,11 +32,10 @@ customElements.define(
     connectedCallback() {
       if (!this.#initialized) {
         this.#initialized = true;
-
         this.innerHTML = this.#template;
+        this.#html.$logo = this.querySelector('.logo');
       }
 
-      this.#html.$logo = this.querySelector('.logo');
 
       this.#html.$logo.innerText = data.appName;
     }

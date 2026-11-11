@@ -1,4 +1,5 @@
 import { getPrefix } from "../_helpers.js";
+import "./pb_sidebar_right_commit.js";
 // import data from "../data.js";
 
 customElements.define(

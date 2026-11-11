@@ -1,10 +1,8 @@
-
 import { getPrefix } from "../_helpers.js";
 
 customElements.define(
   getPrefix("tab-add"),
   class extends HTMLElement {
-
     #initialized = false;
 
     #html = {

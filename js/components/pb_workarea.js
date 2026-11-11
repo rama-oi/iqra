@@ -20,7 +20,6 @@ customElements.define(
     connectedCallback() {
       if (!this.#initialized) {
         this.#initialized = true;
-
         this.innerHTML = this.#template;
       }
     }

@@ -4,6 +4,19 @@
   /* outline: 1px solid #f0a; */
 }
 
+body {
+  display: grid;
+  grid-template-rows:
+    var(--navigation-height)
+    minmax(0, 1fr);
+
+  grid-template-areas:
+    "navigation"
+    "workspace";
+
+  overflow: hidden;
+}
+
 pb-tabs,
 pb-tab,
 pb-tab-add,
@@ -24,23 +37,35 @@ pb-sidebar-right-preview {
 }
 
 p,
+textarea,
+input[type="text"],
 summary,
 button,
 li {
+  color: var(--text);
   font-size: 1rem;
 }
 
-body {
-  display: grid;
-  grid-template-rows:
-    var(--navigation-height)
-    minmax(0, 1fr);
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+blockquote,
+code {
+  margin: 0;
+}
 
-  grid-template-areas:
-    "navigation"
-    "workspace";
+input[type="text"], textarea {
+  border: 1px solid var(--border);
+  background-color: var(--surface-1);
+  padding: var(--space-between-inline-items);
+}
 
-  overflow: hidden;
+textarea {
+  resize: none;
 }
 
 button {
@@ -48,11 +73,18 @@ button {
   background: none;
   border: 0;
   padding-inline: var(--space-between-blocks);
+  padding-block: 4px;
   color: var(--text);
   height: 100%;
 
   &:hover {
     background-color: var(--hover);
+  }
+
+  &.btn {
+    background-color: var(--accent);
+    color: var(--base);
+    text-transform: uppercase;
   }
 }
 
@@ -64,6 +96,25 @@ ul {
 
 .flex-separator {
   flex-grow: 1;
+}
+
+pb-avatar {
+  display: block;
+  border-radius: 25px;
+  border: 1px solid var(--border);
+  width: var(--size);
+  height: var(--size);
+  background-color: var(--surface-1);
+
+  &.small {
+    --size: 16px;
+  }
+  &.medium {
+    --size: 20px;
+  }
+  &.large {
+    --size: 32px;
+  }
 }
 
 header {
@@ -185,6 +236,18 @@ main {
     grid-area: sidebar-right;
     background-color: var(--surface-0);
     border-inline-start: 1px solid var(--border);
+
+    pb-sidebar-right-commit {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-between-inline-items);
+      padding: var(--space-between-inline-items);
+
+      .user {
+        display: flex;
+        gap: var(--space-between-inline-items);
+      }
+    }
   }
 
   pb-sidebar-left,
