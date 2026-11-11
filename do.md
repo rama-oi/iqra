@@ -1,0 +1,3 @@
+- define web components
+- define grid structure
+- add catpuccin theme

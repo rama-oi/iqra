@@ -1,0 +1,140 @@
+@import url(./css/init.css);
+
+* {
+  /* outline: 1px solid #f0a; */
+}
+
+pb-tabs,
+pb-tab,
+pb-tab-add,
+pb-menu,
+pb-menu-config,
+pb-menu-user,
+pb-toolbar,
+pb-sidebar-left,
+pb-workarea-empty,
+pb-workarea-tree,
+pb-workarea-diffs,
+pb-workarea-merge,
+pb-workarea-backlog,
+pb-sidebar-right-commit,
+pb-sidebar-right-preview {
+  display: block;
+}
+
+body {
+  display: grid;
+  grid-template-rows:
+    var(--navigation-height)
+    minmax(0, 1fr);
+
+  grid-template-areas:
+    "navigation"
+    "workspace";
+
+  overflow: hidden;
+}
+
+button {
+  display: block;
+  background: none;
+  border: 0;
+  padding-inline: var(--space-between-blocks);
+  color: var(--text);
+  height: 100%;
+
+  &:hover {
+    background-color: var(--surface-1);
+  }
+}
+
+header {
+  grid-area: navigation;
+  
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  background-color: var(--surface-0);
+
+  pb-tabs {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    /* padding-inline: var(--space-between-blocks); */
+    border-block-end: 1px solid var(--border);
+
+    .logo {
+      color: var(--accent);
+      text-transform: uppercase;
+      padding-inline: var(--space-between-blocks);
+    }
+
+    pb-tab,
+    pb-tab-add {
+      border-inline-end: 1px solid var(--border);
+      display: flex;
+      height: 100%;
+      /* &:first-child {
+        border-inline-start: 1px solid var(--border);
+      } */
+      .label {
+        flex-grow: 1;
+        min-width: 60px;
+      }
+    }
+
+    pb-menu {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-end;
+      gap: var(--space-between-inline-items);
+
+      &,
+      pb-menu-config,
+      pb-menu-user {
+        height: 100%;
+      }
+    }
+  }
+
+  pb-toolbar {
+    border-block-end: 1px solid var(--border);
+  }
+}
+
+main {
+  grid-area: workspace;
+
+  display: grid;
+
+  grid-template-columns:
+    var(--sidebar-left-width)
+    minmax(0, 1fr)
+    var(--sidebar-right-width);
+
+  grid-template-areas: "sidebar-left workarea sidebar-right";
+
+  min-width: 0;
+  min-height: 0;
+}
+
+.sidebar-left {
+  grid-area: sidebar-left;
+}
+
+.workarea {
+  grid-area: workarea;
+}
+
+.sidebar-right {
+  grid-area: sidebar-right;
+}
+
+.sidebar-left,
+.workarea,
+.sidebar-right {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}

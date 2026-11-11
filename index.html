@@ -3,31 +3,45 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cucuyo</title>
-    <link href="./cucuyo.css" rel="stylesheet" />
+    <title>Iqra</title>
+    <link href="./style.css" rel="stylesheet" />
+    <script src="./js/app.js" type="module"></script>
   </head>
-  <body>
+  <body class="catppuccin-mocha">
     <header>
-      <cc-tabs></cc-tabs>
-      <cc-toolbar></cc-toolbar>
+      <pb-tabs>
+        <div class="logo">Iqra</div>
+        <pb-tab label="all"></pb-tab>
+        <pb-tab label="fikret"></pb-tab>
+        <pb-tab-add></pb-tab-add>
+        <pb-menu>
+          <pb-menu-config>
+            <button class="config" type="button">C</button>
+          </pb-menu-config>
+          <pb-menu-user>
+            <button class="config" type="button">U</button>
+          </pb-menu-user>
+        </pb-menu>
+      </pb-tabs>
+      <pb-toolbar></pb-toolbar>
     </header>
 
     <main>
       <aside class="sidebar-left">
-        <cc-sidebar-left></cc-sidebar-left>
+        <pb-sidebar-left></pb-sidebar-left>
       </aside>
 
       <section class="workarea">
-        <cc-workarea-empty></cc-workarea-empty>
-        <cc-workarea-tree></cc-workarea-tree>
-        <cc-workarea-diffs></cc-workarea-diffs>
-        <cc-workarea-merge></cc-workarea-merge>
-        <cc-workarea-backlog></cc-workarea-backlog>
+        <pb-workarea-empty></pb-workarea-empty>
+        <pb-workarea-tree></pb-workarea-tree>
+        <pb-workarea-diffs></pb-workarea-diffs>
+        <pb-workarea-merge></pb-workarea-merge>
+        <pb-workarea-backlog></pb-workarea-backlog>
       </section>
 
       <aside class="sidebar-right">
-        <cc-sidebar-right-commit></cc-sidebar-right-commit>
-        <cc-sidebar-right-preview></cc-sidebar-right-preview>
+        <pb-sidebar-right-commit></pb-sidebar-right-commit>
+        <pb-sidebar-right-preview></pb-sidebar-right-preview>
       </aside>
     </main>
   </body>
