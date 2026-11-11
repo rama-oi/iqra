@@ -177,17 +177,19 @@ main {
     }
   }
 
-  .workarea {
+  pb-workarea {
     grid-area: workarea;
   }
 
-  .sidebar-right {
+  pb-sidebar-right {
     grid-area: sidebar-right;
+    background-color: var(--surface-0);
+    border-inline-start: 1px solid var(--border);
   }
 
   pb-sidebar-left,
-  .workarea,
-  .sidebar-right {
+  pb-workarea,
+  pb-sidebar-right {
     min-width: 0;
     min-height: 0;
     overflow: auto;
