@@ -20,8 +20,9 @@
   --surface-0: #313244;
   --surface-1: #45475a;
   --surface-2: #585b70;
+  
   --accent: var(--yellow);
-
+  --hover: var(--surface-2);
   --border: var(--surface-1);
 
   --text: #cdd6f4;
@@ -29,7 +30,7 @@
   --font-size-h1: 55px;
   --font-size-content: 18px;
 
-  --navigation-height: 80px;
+  --navigation-height: 60px;
   --sidebar-left-width: 300px;
   --sidebar-right-width: 300px;
   --space-between-blocks: 1rem;
