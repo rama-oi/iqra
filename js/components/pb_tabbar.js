@@ -12,8 +12,9 @@ customElements.define(
     };
 
     #template = `
-      <pb-tab label="fikret"></pb-tab>
       <pb-tab-add></pb-tab-add>
+      <pb-tab label="fikret"></pb-tab>
+      <pb-tab label="mako zero" class="pb-active"></pb-tab>
       <span class="pb-flex-separator"></span>
       <pb-menu>
         <button class="config" type="button">

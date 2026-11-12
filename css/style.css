@@ -43,7 +43,6 @@ input[type="search"],
 summary,
 button,
 li {
-  color: var(--text);
   font-size: 1rem;
 }
 
@@ -83,7 +82,6 @@ button {
   border: 0;
   padding-inline: var(--space-between-blocks);
   padding-block: 6px;
-  color: var(--text);
   height: 100%;
 
   &:hover {
@@ -115,7 +113,6 @@ details {
   border-block-end: 1px solid var(--border);
   summary {
     padding: var(--space-between-blocks);
-    color: var(--text);
 
     &:hover {
       background-color: var(--hover);
@@ -153,13 +150,39 @@ pb-avatar {
   background-color: var(--surface-1);
 
   &.pb-small {
-    --size: 16px;
+    --size: 18px;
   }
   &.pb-medium {
-    --size: 20px;
+    --size: 26px;
   }
   &.pb-large {
     --size: 32px;
+  }
+}
+
+pb-workarea-tree {
+  .pb-row {
+    display: flex;
+  }
+
+  .pb-table-header {
+    background-color: var(--surface-0);
+  }
+
+  .pb-column-branch,
+  .pb-column-graph,
+  .pb-column-message {
+    padding: var(--space-between-inline-items);
+  }
+
+  .pb-column-branch {
+    width: var(--column-branch-width);
+  }
+  .pb-column-graph {
+    width: var(--column-graph-width);
+  }
+  .pb-column-message {
+    width: var(--column-message-width);
   }
 }
 
@@ -175,6 +198,10 @@ header {
     flex-direction: row;
     align-items: center;
     border-block-end: 1px solid var(--border);
+
+    pb-tab.pb-active {
+      background-color: var(--surface-1);
+    }
 
     pb-tab,
     pb-tab-add {
@@ -216,7 +243,6 @@ header {
 
       span.arrow-path {
         &::before {
-          color: var(--text);
           content: "/";
         }
       }
@@ -252,7 +278,10 @@ main {
 
   pb-sidebar-right,
   pb-sidebar-left {
-    display: grid;
+    display: flex;
+    .pb-panel-content {
+      flex-grow: 1;
+    }
   }
 
   pb-collapse-btn {

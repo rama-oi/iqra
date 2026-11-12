@@ -27,7 +27,7 @@
 
   --accent: var(--yellow);
   --hover: var(--overlay-0);
-  --border: var(--surface-1);
+  --border: #404040;
   --disabled: var(--surface-2);
   --danger: var(--red);
   --success: var(--green);
@@ -44,6 +44,10 @@
   --space-between-inline-items: 0.5rem;
 
   --collapse-btn-width: .5rem;
+
+  --column-branch-width: 30%;
+  --column-graph-width: 30%;
+  --column-message-width: 40%;
 }
 
 /* @font-face {
@@ -68,7 +72,7 @@ body {
   font-family: "Jersey 25", Helvetica, Arial, sans-serif;
   font-weight: 400;
   color-scheme: dark;
-  color: var(--foreground);
+  color: var(--text);
 
   /* &:has([value="catppuccin-mocha"]:checked) {
  

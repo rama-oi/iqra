@@ -18,6 +18,8 @@ customElements.define(
       <button type="button" class="repository"></button>
       <span class="arrow-path"></span>
       <button type="button" class="branch"></button>
+      <span class="arrow-path"></span>
+      <input type="search" class="search" />
     `;
 
     connectedCallback() {

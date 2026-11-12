@@ -1,4 +1,5 @@
 import { getPrefix } from "../_helpers.js";
+import "./pb-workarea-tree.js";
 // import data from "../data.js";
 
 customElements.define(

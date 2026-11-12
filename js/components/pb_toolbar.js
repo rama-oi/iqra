@@ -20,7 +20,7 @@ customElements.define(
       <button type="button" class="stash">T</button>
       <button type="button" class="pop">O</button>
       <button type="button" class="terminal">M</button>
-      <input type="search" class="search" />
+      
     `;
 
     connectedCallback() {

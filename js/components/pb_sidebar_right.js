@@ -12,9 +12,9 @@ customElements.define(
 
     #template = `
     <pb-collapse-btn class="pb-start"></pb-collapse-btn>
-    <div>
-    <pb-sidebar-right-preview></pb-sidebar-right-preview>
-    <pb-sidebar-right-commit class="pb-hidden-section"></pb-sidebar-right-commit>
+    <div class="pb-panel-content">
+      <pb-sidebar-right-preview></pb-sidebar-right-preview>
+      <pb-sidebar-right-commit class="pb-hidden-section"></pb-sidebar-right-commit>
     </div>
     `;
 
