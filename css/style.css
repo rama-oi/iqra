@@ -168,6 +168,7 @@ pb-workarea-tree {
     background-color: var(--surface-0);
   }
 
+  .pb-table-header .pb-column-graph,
   .pb-column-branch,
   .pb-column-message {
     padding: var(--space-between-inline-items);
