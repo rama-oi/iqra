@@ -17,7 +17,6 @@ body {
   overflow: hidden;
 }
 
-pb-avatar,
 pb-collapse-btn,
 pb-tabs,
 pb-tab,
@@ -142,7 +141,7 @@ ul {
 }
 
 pb-avatar {
-  display: block;
+  display: inline-block;
   border-radius: 25px;
   border: 1px solid var(--border);
   width: var(--size);
@@ -170,7 +169,6 @@ pb-workarea-tree {
   }
 
   .pb-column-branch,
-  .pb-column-graph,
   .pb-column-message {
     padding: var(--space-between-inline-items);
   }
