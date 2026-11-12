@@ -11,7 +11,7 @@ customElements.define(
 
     #template = `
       <pb-view-switcher></pb-view-switcher>
-      <span class="flex-separator"></span>
+      <span class="pb-flex-separator"></span>
       <button type="button" class="restore">R</button>
       <button type="button" class="redo">Y</button>
       <button type="button" class="pull">P</button>
@@ -20,7 +20,7 @@ customElements.define(
       <button type="button" class="stash">T</button>
       <button type="button" class="pop">O</button>
       <button type="button" class="terminal">M</button>
-      <button type="button" class="search">H</button>
+      <input type="search" class="search" />
     `;
 
     connectedCallback() {

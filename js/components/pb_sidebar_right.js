@@ -1,5 +1,6 @@
 import { getPrefix } from "../_helpers.js";
 import "./pb_sidebar_right_commit.js";
+import "./pb_sidebar_right_preview.js";
 // import data from "../data.js";
 
 customElements.define(
@@ -10,8 +11,11 @@ customElements.define(
     #html = {};
 
     #template = `
-      <pb-sidebar-right-commit></pb-sidebar-right-commit>
-      <pb-sidebar-right-preview></pb-sidebar-right-preview>
+    <pb-collapse-btn class="pb-start"></pb-collapse-btn>
+    <div>
+    <pb-sidebar-right-preview></pb-sidebar-right-preview>
+    <pb-sidebar-right-commit class="pb-hidden-section"></pb-sidebar-right-commit>
+    </div>
     `;
 
     connectedCallback() {

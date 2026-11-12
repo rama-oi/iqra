@@ -15,26 +15,35 @@
 
 :root {
   --yellow: #f9e2af;
+  --red: #f38ba8;
+  --green: #a6e3a1;
 
   --base: #1e1e2e;
   --surface-0: #313244;
   --surface-1: #45475a;
   --surface-2: #585b70;
-  
+
+  --overlay-0: #6c7086;
+
   --accent: var(--yellow);
-  --hover: var(--surface-2);
+  --hover: var(--overlay-0);
   --border: var(--surface-1);
+  --disabled: var(--surface-2);
+  --danger: var(--red);
+  --success: var(--green);
 
   --text: #cdd6f4;
 
   --font-size-h1: 55px;
   --font-size-content: 18px;
 
-  --navigation-height: 60px;
+  --navigation-height: 80px;
   --sidebar-left-width: 300px;
   --sidebar-right-width: 300px;
   --space-between-blocks: 1rem;
   --space-between-inline-items: 0.5rem;
+
+  --collapse-btn-width: .5rem;
 }
 
 /* @font-face {

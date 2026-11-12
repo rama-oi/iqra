@@ -10,7 +10,7 @@ customElements.define(
     };
 
     #template = `
-      <button class="add" type="button">+</button>
+      <button class="add pb-success" type="button">+</button>
     `;
 
     connectedCallback() {

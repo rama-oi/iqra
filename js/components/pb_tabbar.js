@@ -1,7 +1,6 @@
 import { getPrefix } from "../_helpers.js";
 import "./pb_tab.js";
 import "./pb_tab_add.js";
-import data from "../data.js";
 
 customElements.define(
   getPrefix("tabbar"),
@@ -13,19 +12,13 @@ customElements.define(
     };
 
     #template = `
-      <div class="logo"></div>
       <pb-tab label="fikret"></pb-tab>
       <pb-tab-add></pb-tab-add>
-      <span class="flex-separator"></span>
+      <span class="pb-flex-separator"></span>
       <pb-menu>
-        <pb-menu-config>
-          <button class="config" type="button">C</button>
-        </pb-menu-config>
-        <pb-menu-user>
-          <button class="config" type="button">
-            <pb-avatar class="medium"></pb-avatar>
-          </button>
-        </pb-menu-user>
+        <button class="config" type="button">
+          <pb-avatar class="pb-medium"></pb-avatar>
+        </button>
       </pb-menu>
     `;
 
@@ -35,9 +28,6 @@ customElements.define(
         this.innerHTML = this.#template;
         this.#html.$logo = this.querySelector('.logo');
       }
-
-
-      this.#html.$logo.innerText = data.appName;
     }
   },
 );

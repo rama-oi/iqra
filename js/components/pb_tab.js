@@ -14,7 +14,7 @@ customElements.define(
 
     #template = `
       <button class="label" type="button"></button>
-      <button class="close" type="button">x</button>
+      <button class="close pb-danger" type="button">x</button>
     `;
 
     get label() {

@@ -8,20 +8,26 @@ customElements.define(
     #html = {};
 
     #template = `
-      <p class="hash">2309239020392309</p>
-      
-      <div class="user">
-        <pb-avatar class="large"></pb-avatar>
-        <div class="details">
-          <p class="name">Pombo</p>
-          <p><time datetime="12:00">12:00 @ 10:00</time></p>
-        </div>
-      </div>
+      <details class="unstaged" open>
+        <summary>Unstaged Files</summary>
+        <ul class="content">
+          <li><button type="button">file 1</button></li>
+        </ul>
+      </details>
 
+      <details class="staged" open>
+        <summary>Staged Files</summary>
+        <ul class="content">
+          <li><button type="button">file 1</button></li>
+        </ul>
+      </details>
+
+      <hr>
+
+      <p>Commit</p>
       <input type="text" />
-      <textarea rows="7"></textarea>
-
-      <button class="commit-btn btn" type="button">commit</button>
+      <textarea rows="6"></textarea>
+      <button class="commit-btn pb-btn" type="button">commit</button>
     `;
 
     connectedCallback() {
