@@ -39,7 +39,6 @@ customElements.define(
         const { commits } = await fetchCommits({ repo: data.repository, branch: data.branch });
         const { rows, laneCount } = layoutGraph(commits);
 
-        // The graph column is as wide as the widest row needs.
         this.style.setProperty("--column-graph-width", `${laneCount * LANE_W}px`);
         body.innerHTML = rows.map((row) => this.#renderRow(row, laneCount)).join("");
       } catch (err) {

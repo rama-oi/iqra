@@ -1,8 +1,8 @@
 export const PALETTE_SIZE = 8;
 
 export function layoutGraph(commits) {
-  const lanes = []; // hash | null
-  const colors = []; // palette index per lane (undefined when free)
+  const lanes = [];
+  const colors = [];
   let cycle = 0;
   let laneCount = 1;
 
@@ -29,7 +29,8 @@ export function layoutGraph(commits) {
 
     const through = [];
     lanes.forEach((hash, i) => {
-      if (hash !== null && !incoming.includes(i)) through.push({ lane: i, color: colors[i] });
+      if (hash !== null && !incoming.includes(i))
+        through.push({ lane: i, color: colors[i] });
     });
     const ins = incoming.map((i) => ({ lane: i, color: colors[i] }));
 
@@ -57,7 +58,9 @@ export function layoutGraph(commits) {
     for (const i of incoming) if (lanes[i] === null) colors[i] = undefined;
     if (!commit.parents.length) colors[lane] = undefined;
 
-    const touched = [lane, ...through, ...ins, ...outs].map((x) => (typeof x === "number" ? x : x.lane));
+    const touched = [lane, ...through, ...ins, ...outs].map((x) =>
+      typeof x === "number" ? x : x.lane,
+    );
     laneCount = Math.max(laneCount, ...touched.map((n) => n + 1));
 
     return {
