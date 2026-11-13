@@ -28,6 +28,17 @@ customElements.define(
         this.#initialized = true;
         this.innerHTML = this.#template;
         this.#html.$logo = this.querySelector('.logo');
+
+        const $avatar = this.querySelector('pb-avatar');
+        this.querySelector('.config').addEventListener('click', () =>
+          document.dispatchEvent(new CustomEvent('pb-open-settings')),
+        );
+        // the corner avatar always shows the active identity
+        document.addEventListener('pb-identity-change', (e) => {
+          const identity = e.detail;
+          $avatar.setAttribute('name', identity?.name ?? '');
+          $avatar.setAttribute('src', identity?.avatarUrl ?? '');
+        });
       }
     }
   },

@@ -6,3 +6,7 @@ import "./components/pb_toolbar.js";
 import "./components/pb_sidebar_left.js";
 import "./components/pb_sidebar_right.js";
 import "./components/pb_workarea.js";
+import "./components/pb_settings.js";
+
+import { initTheme } from "./theme.js";
+initTheme();
