@@ -22,12 +22,12 @@ customElements.define(
         </ul>
       </details>
 
-      <hr>
-
-      <p>Commit</p>
-      <input type="text" />
-      <textarea rows="6"></textarea>
-      <button class="commit-btn pb-btn" type="button">commit</button>
+      <div class="pb-wrapper">
+        <p>Commit</p>
+        <input type="text" />
+        <textarea rows="6"></textarea>
+        <button class="commit-btn pb-btn" type="button">commit</button>
+      </div>
     `;
 
     connectedCallback() {

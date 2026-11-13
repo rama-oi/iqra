@@ -7,6 +7,7 @@ const data = {
   repository: "fikret",
   branch: "v10",
   area: "workarea", // a key of AREAS
+  commit: null, // the commit selected in the tree, or null
 };
 
 export default data;
@@ -25,11 +26,22 @@ export function setRepository({ name, defaultBranch }) {
   if (name === data.repository) return;
   data.repository = name;
   data.branch = defaultBranch;
+  data.commit = null;
+  emit("pb-commit-select", null);
   emit("pb-repository-change", name);
 }
 
 export function setBranch(branch) {
   if (!branch || branch === data.branch) return;
   data.branch = branch;
+  data.commit = null;
+  emit("pb-commit-select", null);
   emit("pb-branch-change", branch);
+}
+
+// Pass null to go back to the "commit your changes" view.
+export function setCommit(commit) {
+  if ((commit?.hash ?? null) === (data.commit?.hash ?? null)) return;
+  data.commit = commit;
+  emit("pb-commit-select", commit);
 }

@@ -289,6 +289,10 @@ pb-workarea-tree {
   /* Body rows have a fixed height so the per-row graph svgs stack seamlessly. */
   .pb-table-body .pb-row {
     height: var(--row-height);
+
+    &.pb-selected {
+      background-color: var(--surface-1);
+    }
   }
 
   .pb-column-branch {
@@ -525,8 +529,13 @@ main {
       }
 
       .pb-hash {
-        color: var(--disabled);
+        color: var(--overlay-0);
         text-align: right;
+        word-break: break-all;
+      }
+
+      .pb-empty {
+        padding: var(--space-between-blocks);
       }
     }
   }
