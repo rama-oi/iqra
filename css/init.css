@@ -45,9 +45,18 @@
 
   --collapse-btn-width: .5rem;
 
-  --column-branch-width: 30%;
-  --column-graph-width: 30%;
-  --column-message-width: 40%;
+  --row-height: 30px;
+  --column-branch-width: 260px;
+  --column-graph-width: 120px;
+
+  --graph-0: #89b4fa;
+  --graph-1: #cba6f7;
+  --graph-2: #a6e3a1;
+  --graph-3: #fab387;
+  --graph-4: #f5c2e7;
+  --graph-5: #94e2d5;
+  --graph-6: #f9e2af;
+  --graph-7: #f38ba8;
 }
 
 /* @font-face {

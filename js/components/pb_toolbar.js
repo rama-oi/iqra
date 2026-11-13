@@ -11,7 +11,6 @@ customElements.define(
 
     #template = `
       <pb-view-switcher></pb-view-switcher>
-      <span class="pb-flex-separator"></span>
       <button type="button" class="restore">R</button>
       <button type="button" class="redo">Y</button>
       <button type="button" class="pull">P</button>
