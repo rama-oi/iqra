@@ -3,6 +3,7 @@ import { fetchCommits } from "../api/commits.js";
 import { layoutGraph } from "../graph/layout.js";
 import { renderGraphRow, avatarStyle, LANE_W } from "../graph/render-row.js";
 import data, { setCommit } from "../data.js";
+import { matches } from "../filter.js";
 
 customElements.define(
   getPrefix("workarea-tree"),
@@ -40,8 +41,9 @@ customElements.define(
         setCommit(data.commit?.hash === hash ? null : this.#commits.get(hash));
       });
       document.addEventListener("pb-commit-select", () => this.#markSelected());
+      document.addEventListener("pb-filter-change", () => this.#applyFilter());
 
-      for (const type of ["pb-repository-change", "pb-branch-change"]) {
+      for (const type of ["pb-repository-change", "pb-branch-change", "pb-history-change"]) {
         document.addEventListener(type, () => this.#load());
       }
       this.#load();
@@ -50,6 +52,7 @@ customElements.define(
     async #load() {
       const loadId = ++this.#loadId;
       const body = this.querySelector(".pb-table-body");
+      if (!data.repository) return;
       try {
         const { commits } = await fetchCommits({ repo: data.repository, branch: data.branch });
         if (loadId !== this.#loadId) return; // a newer load superseded this one
@@ -59,10 +62,22 @@ customElements.define(
         this.style.setProperty("--column-graph-width", `${laneCount * LANE_W}px`);
         body.innerHTML = rows.map((row) => this.#renderRow(row, laneCount)).join("");
         this.#markSelected();
+        this.#applyFilter();
       } catch (err) {
         if (loadId !== this.#loadId) return;
         console.error(err);
         body.innerHTML = `<p class="pb-error">Could not load commits.</p>`;
+      }
+    }
+
+    // Rows that don't match are dimmed rather than removed, so the graph stays connected.
+    #applyFilter() {
+      for (const row of this.querySelectorAll(".pb-table-body .pb-row")) {
+        const c = this.#commits.get(row.dataset.hash);
+        const hit =
+          !c ||
+          matches(data.filter, c.message, c.hash, c.author.name, c.author.email, c.refs.map((r) => r.name));
+        row.classList.toggle("pb-dimmed", !hit);
       }
     }
 

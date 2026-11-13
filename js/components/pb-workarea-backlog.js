@@ -1,6 +1,7 @@
 import { getPrefix, escapeHtml } from "../_helpers.js";
 import { fetchIssues } from "../api/issues.js";
 import data from "../data.js";
+import { matches } from "../filter.js";
 
 const formatDate = (iso) =>
   new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
@@ -12,6 +13,7 @@ customElements.define(
   class extends HTMLElement {
     #initialized = false;
     #loadId = 0;
+    #issues = [];
 
     #template = `
       <section class="pb-table-header">
@@ -29,6 +31,7 @@ customElements.define(
       this.innerHTML = this.#template;
 
       document.addEventListener("pb-repository-change", () => this.#load());
+      document.addEventListener("pb-filter-change", () => this.#applyFilter());
       this.#load();
     }
 
@@ -36,6 +39,7 @@ customElements.define(
       const loadId = ++this.#loadId;
       const list = this.querySelector(".pb-issues");
       const $count = this.querySelector(".pb-count");
+      if (!data.repository) return;
       list.innerHTML = `<p class="pb-status">Loading…</p>`;
       $count.textContent = "";
 
@@ -43,11 +47,12 @@ customElements.define(
         const issues = await fetchIssues({ repo: data.repository });
         if (loadId !== this.#loadId) return;
 
-        const open = issues.filter((i) => i.state === "open").length;
-        $count.textContent = `${open} open · ${issues.length - open} closed`;
+        this.#issues = issues;
         list.innerHTML = issues.length
-          ? issues.map((issue) => this.#renderIssue(issue)).join("")
+          ? issues.map((issue, i) => this.#renderIssue(issue, i)).join("") +
+            `<p class="pb-status pb-no-match" hidden>No issues match.</p>`
           : `<p class="pb-status">No issues in ${escapeHtml(data.repository)}.</p>`;
+        this.#applyFilter();
       } catch (err) {
         if (loadId !== this.#loadId) return;
         console.error(err);
@@ -55,14 +60,35 @@ customElements.define(
       }
     }
 
-    #renderIssue(issue) {
+    // Hide non-matching issues in place, so the ones already expanded stay expanded.
+    #applyFilter() {
+      const issues = this.#issues;
+      if (!issues.length) return;
+      let shown = 0;
+      for (const el of this.querySelectorAll(".pb-issue")) {
+        const i = issues[el.dataset.index];
+        const hit = matches(
+          data.filter, `#${i.number}`, i.number, i.title, i.body, i.labels, i.author, i.assignee, i.state,
+        );
+        el.hidden = !hit;
+        if (hit) shown++;
+      }
+      this.querySelector(".pb-no-match").hidden = shown > 0;
+
+      const open = issues.filter((i) => i.state === "open").length;
+      this.querySelector(".pb-count").textContent = data.filter
+        ? `${shown} of ${issues.length} shown`
+        : `${open} open · ${issues.length - open} closed`;
+    }
+
+    #renderIssue(issue, index) {
       const labels = (issue.labels ?? [])
         .map((l) => `<span class="pb-label">${escapeHtml(l)}</span>`)
         .join("");
       const assignee = issue.assignee ? ` · assigned to ${escapeHtml(issue.assignee)}` : "";
 
       return `
-      <details class="pb-issue pb-${escapeHtml(issue.state)}">
+      <details class="pb-issue pb-${escapeHtml(issue.state)}" data-index="${index}">
         <summary>
           <span class="pb-state">${issue.state === "open" ? "open" : "closed"}</span>
           <span class="pb-number">#${escapeHtml(issue.number)}</span>

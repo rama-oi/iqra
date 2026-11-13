@@ -3,6 +3,8 @@
 // Backend contract:
 //   GET /api/projects                  -> { projects: [{ name, description, defaultBranch }] }
 //   GET /api/repos/:repo/branches      -> { branches: [{ name, isDefault }] }
+//   POST /api/projects { url, name }   -> { project: { name, description, defaultBranch } }
+//     clones the repository; errors answer { error: "human readable text" }
 
 const USE_MOCK = true;
 
@@ -42,4 +44,31 @@ export async function fetchBranches(repo) {
   const res = await fetch(`/api/repos/${encodeURIComponent(repo)}/branches`);
   if (!res.ok) throw new Error(`Failed to load branches (${res.status})`);
   return (await res.json()).branches;
+}
+
+const GIT_URL = /^(https?:\/\/|ssh:\/\/|git:\/\/|git@)\S+$/i;
+
+export async function cloneProject({ url, name }) {
+  if (USE_MOCK) {
+    await new Promise((resolve) => setTimeout(resolve, 900)); // cloning takes a while
+    if (!GIT_URL.test(url)) throw new Error("That does not look like a git URL.");
+    if (MOCK_PROJECTS.some((p) => p.name === name)) {
+      throw new Error(`A project named "${name}" already exists.`);
+    }
+    const project = { name, description: `Cloned from ${url}`, defaultBranch: "main" };
+    MOCK_PROJECTS.push(project);
+    MOCK_BRANCHES[name] = ["main"];
+    return structuredClone(project);
+  }
+
+  const res = await fetch("/api/projects", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, name }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `Clone failed (${res.status})`);
+  }
+  return (await res.json()).project;
 }

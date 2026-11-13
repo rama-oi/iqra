@@ -10,7 +10,7 @@ customElements.define(
     };
 
     #template = `
-      <button class="add pb-success" type="button">+</button>
+      <button class="add pb-success" type="button" aria-label="Clone repository" title="Clone repository">+</button>
     `;
 
     connectedCallback() {
@@ -20,6 +20,9 @@ customElements.define(
         this.innerHTML = this.#template;
 
         this.#html.$addBtn = this.querySelector(".add");
+        this.#html.$addBtn.addEventListener("click", () =>
+          document.dispatchEvent(new CustomEvent("pb-open-clone")),
+        );
       }
     }
   },

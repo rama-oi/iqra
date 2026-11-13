@@ -1,6 +1,6 @@
 import { getPrefix, escapeHtml } from "../_helpers.js";
 import AREAS from "../objects/areas.js";
-import data, { setArea, setBranch, setRepository } from "../data.js";
+import data, { openProject, setArea, setBranch, setFilter } from "../data.js";
 import { fetchBranches, fetchProjects } from "../api/projects.js";
 import { pickOne } from "./pb_picker.js";
 
@@ -14,6 +14,7 @@ customElements.define(
       $areaMenu: undefined,
       $repository: undefined,
       $branch: undefined,
+      $search: undefined,
     };
 
     #template = `
@@ -37,8 +38,9 @@ customElements.define(
       this.#html.$areaMenu = this.querySelector(".area-menu");
       this.#html.$repository = this.querySelector(".repository");
       this.#html.$branch = this.querySelector(".branch");
+      this.#html.$search = this.querySelector(".search");
 
-      const { $area, $areaMenu, $repository, $branch } = this.#html;
+      const { $area, $areaMenu, $repository, $branch, $search } = this.#html;
 
       // Open the menu right under the button that opened it.
       $areaMenu.addEventListener("beforetoggle", (e) => {
@@ -55,6 +57,8 @@ customElements.define(
       });
       $repository.addEventListener("click", () => this.#chooseRepository());
       $branch.addEventListener("click", () => this.#chooseBranch());
+      $search.addEventListener("input", () => setFilter($search.value));
+      document.addEventListener("pb-filter-change", () => this.#render());
 
       for (const type of ["pb-area-change", "pb-repository-change", "pb-branch-change"]) {
         document.addEventListener(type, () => this.#render());
@@ -63,11 +67,14 @@ customElements.define(
     }
 
     #render() {
-      const { $area, $areaMenu, $repository, $branch } = this.#html;
+      const { $area, $areaMenu, $repository, $branch, $search } = this.#html;
 
       $area.textContent = AREAS[data.area];
-      $repository.textContent = data.repository;
-      $branch.textContent = data.branch;
+      $repository.textContent = data.repository ?? "No project";
+      $branch.textContent = data.branch ?? "-";
+      $branch.disabled = !data.repository;
+
+      if ($search.value !== data.filter) $search.value = data.filter;
 
       $areaMenu.innerHTML = Object.entries(AREAS)
         .map(
@@ -91,10 +98,11 @@ customElements.define(
       if (name === null) return;
 
       const project = (await projects).find((p) => p.name === name);
-      if (project) setRepository(project);
+      if (project) openProject(project);
     }
 
     async #chooseBranch() {
+      if (!data.repository) return;
       const branch = await pickOne({
         title: `Switch branch · ${data.repository}`,
         current: data.branch,

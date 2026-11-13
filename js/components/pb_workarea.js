@@ -14,7 +14,10 @@ customElements.define(
 
     // Which children show is decided in CSS from the data-area attribute.
     #template = `
-      <pb-workarea-empty></pb-workarea-empty>
+      <pb-workarea-empty>
+        <p>No project open</p>
+        <button type="button" class="pb-btn open-clone">clone a repository</button>
+      </pb-workarea-empty>
       <pb-workarea-tree></pb-workarea-tree>
       <pb-workarea-diffs></pb-workarea-diffs>
       <pb-workarea-merge></pb-workarea-merge>
@@ -31,6 +34,14 @@ customElements.define(
         document.addEventListener("pb-area-change", () => {
           this.dataset.area = data.area;
         });
+
+        // with every tab closed only the empty message shows
+        const syncEmpty = () => this.toggleAttribute("data-empty", !data.repository);
+        document.addEventListener("pb-repository-change", syncEmpty);
+        syncEmpty();
+        this.querySelector(".open-clone").addEventListener("click", () =>
+          document.dispatchEvent(new CustomEvent("pb-open-clone")),
+        );
       }
     }
   },

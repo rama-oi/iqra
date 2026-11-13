@@ -1,6 +1,7 @@
 import "./components/pb_avatar.js"
 import "./components/pb_collapse_btn.js"
 import "./components/pb_picker.js"
+import "./components/pb_clone.js"
 
 import "./components/pb_tabbar.js";
 import "./components/pb_toolbar.js";
