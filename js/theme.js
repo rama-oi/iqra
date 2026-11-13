@@ -14,6 +14,7 @@ export const ACCENTS = [
 ];
 
 const STORAGE_KEY = "pb-theme";
+const ACCENT_STORAGE_KEY = "pb-accent";
 
 export function getTheme() {
   try {
@@ -35,6 +36,27 @@ export function setTheme(id) {
   }
 }
 
+export function getAccent() {
+  try {
+    const saved = localStorage.getItem(ACCENT_STORAGE_KEY);
+    if (ACCENTS.some((a) => a.id === saved)) return saved;
+  } catch {
+    // storage can be blocked; fall through to the default
+  }
+  return ACCENTS[0].id;
+}
+
+export function setAccent(id) {
+  if (!ACCENTS.some((a) => a.id === id)) return;
+  for (const a of ACCENTS) document.body.classList.toggle(`pb-accent-${a.id}`, a.id === id);
+  try {
+    localStorage.setItem(ACCENT_STORAGE_KEY, id);
+  } catch {
+    // not persisted, still applied for this session
+  }
+}
+
 export function initTheme() {
   setTheme(getTheme());
+  setAccent(getAccent());
 }

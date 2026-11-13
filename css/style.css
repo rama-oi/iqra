@@ -27,11 +27,14 @@ pb-toolbar,
 pb-view-switcher,
 pb-sidebar-left,
 pb-settings,
+pb-picker,
+pb-workarea,
 pb-workarea-empty,
 pb-workarea-tree,
 pb-workarea-diffs,
 pb-workarea-merge,
 pb-workarea-backlog,
+pb-workarea-contributors,
 pb-sidebar-right-commit,
 pb-sidebar-right-preview {
   display: block;
@@ -479,7 +482,23 @@ main {
       padding: 0;
       height: 100%;
       background-color: var(--surface-2);
+      cursor: pointer;
+
+      &:hover {
+        background-color: var(--accent);
+      }
     }
+  }
+
+  /* A collapsed sidebar shrinks to just its collapse bar. */
+  &:has(pb-sidebar-left.pb-collapsed) {
+    --sidebar-left-width: var(--collapse-btn-width);
+  }
+  &:has(pb-sidebar-right.pb-collapsed) {
+    --sidebar-right-width: var(--collapse-btn-width);
+  }
+  .pb-collapsed .pb-panel-content {
+    display: none;
   }
 
   pb-sidebar-left {
@@ -667,5 +686,210 @@ pb-settings dialog {
 
   .pb-error {
     color: var(--danger);
+  }
+}
+
+/* --- workarea: which view shows ------------------------------------- */
+pb-workarea[data-area="backlog"] > :not(pb-workarea-backlog),
+pb-workarea[data-area="contributors"] > :not(pb-workarea-contributors),
+pb-workarea:not([data-area="backlog"]) > pb-workarea-backlog,
+pb-workarea:not([data-area="contributors"]) > pb-workarea-contributors {
+  display: none;
+}
+
+pb-workarea-backlog,
+pb-workarea-contributors {
+  .pb-table-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: var(--surface-0);
+  }
+
+  .pb-backlog-title {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-between-blocks);
+    padding: var(--space-between-inline-items);
+  }
+
+  .pb-count,
+  .pb-meta {
+    color: var(--overlay-0);
+  }
+
+  .pb-status,
+  .pb-error {
+    padding: var(--space-between-blocks);
+  }
+  .pb-error {
+    color: var(--danger);
+  }
+}
+
+pb-workarea-backlog {
+  .pb-issue {
+    summary {
+      display: flex;
+      align-items: center;
+      gap: var(--space-between-inline-items);
+      padding: var(--space-between-inline-items) var(--space-between-blocks);
+      cursor: pointer;
+    }
+
+    .pb-state {
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      padding: 0 0.4rem;
+      border: 1px solid var(--success);
+      color: var(--success);
+    }
+    &.pb-closed .pb-state {
+      border-color: var(--disabled);
+      color: var(--disabled);
+    }
+    &.pb-closed .pb-issue-title {
+      color: var(--disabled);
+    }
+
+    .pb-number {
+      color: var(--disabled);
+    }
+    .pb-issue-title {
+      flex: 1 1 0;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .pb-label {
+      padding: 0 0.4rem;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      border-radius: 4px;
+    }
+
+    &[open] .pb-issue-title {
+      white-space: normal;
+    }
+
+    .pb-issue-body {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-between-inline-items);
+      padding: var(--space-between-blocks);
+    }
+    .pb-issue-text {
+      white-space: pre-wrap;
+    }
+  }
+}
+
+pb-workarea-contributors .pb-contributors li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-between-inline-items);
+  padding: var(--space-between-inline-items) var(--space-between-blocks);
+  border-block-end: 1px solid var(--border);
+
+  .pb-name {
+    flex-grow: 1;
+  }
+  .pb-email,
+  .pb-commits {
+    color: var(--disabled);
+  }
+}
+
+/* --- toolbar area menu ---------------------------------------------- */
+pb-view-switcher .area-menu {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  min-width: 10rem;
+  border: 1px solid var(--border);
+  background-color: var(--surface-0);
+  color: var(--text);
+
+  button {
+    width: 100%;
+    height: auto;
+    text-align: left;
+    color: inherit;
+
+    &.pb-active {
+      color: var(--accent);
+    }
+  }
+}
+
+/* --- picker dialog -------------------------------------------------- */
+pb-picker dialog {
+  padding: 0;
+  border: 1px solid var(--border);
+  background-color: var(--surface-0);
+  color: var(--text);
+  width: min(420px, 92vw);
+  max-height: min(520px, 86vh);
+
+  &::backdrop {
+    background-color: rgb(0 0 0 / 0.55);
+  }
+
+  &[open] {
+    display: flex;
+    flex-direction: column;
+  }
+
+  > header {
+    display: flex; /* undo the app-wide `header` grid */
+    align-items: center;
+    justify-content: space-between;
+    padding-inline-start: var(--space-between-blocks);
+    border-block-end: 1px solid var(--border);
+
+    .close {
+      height: auto;
+      padding: 0.6rem 0.8rem;
+    }
+  }
+
+  .filter {
+    margin: var(--space-between-inline-items);
+  }
+
+  .status {
+    padding: var(--space-between-inline-items) var(--space-between-blocks);
+  }
+  .status.pb-error {
+    color: var(--danger);
+  }
+
+  .list {
+    overflow: auto;
+    min-height: 0;
+  }
+
+  .item {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-between-blocks);
+    width: 100%;
+    height: auto;
+    padding: 0.6rem var(--space-between-blocks);
+    text-align: left;
+    color: inherit;
+    border-inline-start: 3px solid transparent;
+
+    .description {
+      color: var(--disabled);
+    }
+
+    &.pb-active {
+      background-color: var(--surface-1);
+      color: var(--accent);
+      border-inline-start-color: var(--accent);
+    }
   }
 }

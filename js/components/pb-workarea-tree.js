@@ -8,6 +8,7 @@ customElements.define(
   getPrefix("workarea-tree"),
   class extends HTMLElement {
     #initialized = false;
+    #loadId = 0;
 
     #template = `
     <section class="pb-table-header">
@@ -30,18 +31,25 @@ customElements.define(
       if (this.#initialized) return;
       this.#initialized = true;
       this.innerHTML = this.#template;
+
+      for (const type of ["pb-repository-change", "pb-branch-change"]) {
+        document.addEventListener(type, () => this.#load());
+      }
       this.#load();
     }
 
     async #load() {
+      const loadId = ++this.#loadId;
       const body = this.querySelector(".pb-table-body");
       try {
         const { commits } = await fetchCommits({ repo: data.repository, branch: data.branch });
+        if (loadId !== this.#loadId) return; // a newer load superseded this one
         const { rows, laneCount } = layoutGraph(commits);
 
         this.style.setProperty("--column-graph-width", `${laneCount * LANE_W}px`);
         body.innerHTML = rows.map((row) => this.#renderRow(row, laneCount)).join("");
       } catch (err) {
+        if (loadId !== this.#loadId) return;
         console.error(err);
         body.innerHTML = `<p class="pb-error">Could not load commits.</p>`;
       }

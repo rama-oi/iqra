@@ -5,7 +5,7 @@ import {
   selectIdentity,
   removeIdentity,
 } from "../api/identities.js";
-import { ACCENTS, THEMES, getTheme, setTheme } from "../theme.js";
+import { ACCENTS, THEMES, getAccent, getTheme, setAccent, setTheme } from "../theme.js";
 
 const TABS = ["ssh", "theme", "about"];
 
@@ -132,6 +132,7 @@ customElements.define(
       this.#html.$form.addEventListener("submit", (e) => this.#onAdd(e));
       this.#html.$dialog.addEventListener("change", (e) => {
         if (e.target.name === "theme") setTheme(e.target.value);
+        if (e.target.name === "accent") setAccent(e.target.value);
       });
 
       this.#loadIdentities(fetchIdentities());
@@ -139,9 +140,9 @@ customElements.define(
 
     open(tab = "ssh") {
       this.#showTab(tab);
-      const current = getTheme();
-      for (const radio of this.querySelectorAll('input[name="theme"]')) {
-        radio.checked = radio.value === current;
+      const current = { theme: getTheme(), accent: getAccent() };
+      for (const radio of this.querySelectorAll('input[name="theme"], input[name="accent"]')) {
+        radio.checked = radio.value === current[radio.name];
       }
       if (!this.#html.$dialog.open) this.#html.$dialog.showModal();
     }
