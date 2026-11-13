@@ -61,7 +61,10 @@ customElements.define(
         </section>
 
         <section class="body pb-settings-tab-about">
-          <p>Iqra v1</p>
+          <h2>Iqra v1</h2>
+          <p>
+            Web Git client
+          </p>
           <ul class="claims">
             <li>
               GPL 3.0
