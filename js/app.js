@@ -12,3 +12,6 @@ import "./components/pb_settings.js";
 
 import { initTheme } from "./theme.js";
 initTheme();
+
+import { APP } from "./constants/app.js";
+document.title = APP.name;

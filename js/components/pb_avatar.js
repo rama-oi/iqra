@@ -1,4 +1,4 @@
-import { getPrefix, escapeHtml } from "../_helpers.js";
+import { getPrefix, escapeHtml } from "../lib/helpers.js";
 
 export function getInitials(name) {
   const words = String(name ?? "").trim().split(/\s+/).filter(Boolean);

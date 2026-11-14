@@ -1,5 +1,5 @@
-import { getPrefix, escapeHtml } from "../_helpers.js";
-import data from "../data.js";
+import { getPrefix, escapeHtml } from "../lib/helpers.js";
+import data from "../api/data.js";
 
 // First line is the subject, whatever follows the first blank line is the body.
 function splitMessage(message) {

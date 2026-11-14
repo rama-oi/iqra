@@ -1,5 +1,5 @@
-import { getPrefix, escapeHtml } from "../_helpers.js";
-import data, { closeTab, selectTab } from "../data.js";
+import { getPrefix, escapeHtml } from "../lib/helpers.js";
+import data, { closeTab, selectTab } from "../api/data.js";
 import "./pb_tab.js";
 import "./pb_tab_add.js";
 
@@ -34,11 +34,12 @@ customElements.define(
           document.dispatchEvent(new CustomEvent('pb-open-settings')),
         );
         // the corner avatar always shows the active identity
-        document.addEventListener('pb-identity-change', (e) => {
-          const identity = e.detail;
-          $avatar.setAttribute('name', identity?.name ?? '');
-          $avatar.setAttribute('src', identity?.avatarUrl ?? '');
-        });
+        const syncAvatar = () => {
+          $avatar.setAttribute('name', data.identity?.name ?? '');
+          $avatar.setAttribute('src', data.identity?.avatarUrl ?? '');
+        };
+        document.addEventListener('pb-identity-change', syncAvatar);
+        syncAvatar();
 
         this.#html.$tabs.addEventListener("pb-tab-select", (e) => selectTab(e.detail));
         this.#html.$tabs.addEventListener("pb-tab-close", (e) => closeTab(e.detail));

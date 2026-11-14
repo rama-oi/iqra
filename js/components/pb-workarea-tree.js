@@ -1,9 +1,9 @@
-import { getPrefix, escapeHtml } from "../_helpers.js";
+import { getPrefix, escapeHtml } from "../lib/helpers.js";
 import { fetchCommits } from "../api/commits.js";
 import { layoutGraph } from "../graph/layout.js";
 import { renderGraphRow, avatarStyle, LANE_W } from "../graph/render-row.js";
-import data, { setCommit } from "../data.js";
-import { matches } from "../filter.js";
+import data, { setCommit } from "../api/data.js";
+import { matches } from "../lib/filter.js";
 
 customElements.define(
   getPrefix("workarea-tree"),

@@ -1,4 +1,4 @@
-import { getPrefix } from "../_helpers.js";
+import { getPrefix } from "../lib/helpers.js";
 import "./pb_view_switcher.js";
 
 customElements.define(

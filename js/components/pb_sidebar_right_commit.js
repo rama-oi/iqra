@@ -1,6 +1,6 @@
-import { getPrefix } from "../_helpers.js";
+import { getPrefix } from "../lib/helpers.js";
 import { createCommit } from "../api/commits.js";
-import data from "../data.js";
+import data from "../api/data.js";
 
 customElements.define(
   getPrefix("sidebar-right-commit"),

@@ -1,7 +1,7 @@
-import { getPrefix, escapeHtml } from "../_helpers.js";
+import { getPrefix, escapeHtml } from "../lib/helpers.js";
 import { fetchIssues } from "../api/issues.js";
-import data from "../data.js";
-import { matches } from "../filter.js";
+import data from "../api/data.js";
+import { matches } from "../lib/filter.js";
 
 const formatDate = (iso) =>
   new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });

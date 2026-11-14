@@ -1,6 +1,6 @@
-import { getPrefix, escapeHtml } from "../_helpers.js";
-import AREAS from "../objects/areas.js";
-import data, { openProject, setArea, setBranch, setFilter } from "../data.js";
+import { getPrefix, escapeHtml } from "../lib/helpers.js";
+import AREAS from "../constants/areas.js";
+import data, { openProject, setArea, setBranch, setFilter } from "../api/data.js";
 import { fetchBranches, fetchProjects } from "../api/projects.js";
 import { pickOne } from "./pb_picker.js";
 
@@ -69,14 +69,14 @@ customElements.define(
     #render() {
       const { $area, $areaMenu, $repository, $branch, $search } = this.#html;
 
-      $area.textContent = AREAS[data.area];
+      $area.textContent = AREAS.get(data.area);
       $repository.textContent = data.repository ?? "No project";
       $branch.textContent = data.branch ?? "-";
       $branch.disabled = !data.repository;
 
       if ($search.value !== data.filter) $search.value = data.filter;
 
-      $areaMenu.innerHTML = Object.entries(AREAS)
+      $areaMenu.innerHTML = AREAS.entries()
         .map(
           ([key, label]) => `
           <li role="none">

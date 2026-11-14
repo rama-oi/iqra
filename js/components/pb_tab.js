@@ -1,4 +1,4 @@
-import { getPrefix } from "../_helpers.js";
+import { getPrefix } from "../lib/helpers.js";
 
 // A project tab. It only reports what the user did (both events bubble);
 // pb-tabbar decides what that means.

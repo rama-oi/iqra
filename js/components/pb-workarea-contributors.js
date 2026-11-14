@@ -1,7 +1,7 @@
-import { getPrefix, escapeHtml } from "../_helpers.js";
+import { getPrefix, escapeHtml } from "../lib/helpers.js";
 import { fetchCommits } from "../api/commits.js";
-import data from "../data.js";
-import { matches } from "../filter.js";
+import data from "../api/data.js";
+import { matches } from "../lib/filter.js";
 
 // Who committed to the current project. For now derived from the commit list;
 // a dedicated endpoint can replace this later.

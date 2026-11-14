@@ -1,4 +1,4 @@
-import { getPrefix, escapeHtml } from "../_helpers.js";
+import { getPrefix, escapeHtml } from "../lib/helpers.js";
 
 // A modal "pick one from a list" dialog with a filter box.
 //

@@ -1,10 +1,12 @@
-import { getPrefix, escapeHtml } from "../_helpers.js";
+import { getPrefix, escapeHtml } from "../lib/helpers.js";
 import {
   fetchIdentities,
   addIdentity,
   selectIdentity,
   removeIdentity,
 } from "../api/identities.js";
+import { setIdentity } from "../api/data.js";
+import { APP } from "../constants/app.js";
 import { ACCENTS, THEMES, getAccent, getTheme, setAccent, setTheme } from "../theme.js";
 
 const TABS = ["ssh", "theme", "about"];
@@ -100,9 +102,9 @@ customElements.define(
         </section>
 
         <section class="body pb-settings-tab-about">
-          <h2>Iqra v1</h2>
+          <h2>${escapeHtml(APP.name)} v${escapeHtml(APP.version)}</h2>
           <p>
-            Web Git client
+            ${escapeHtml(APP.description)}
           </p>
           <ul class="claims">
             <li>
@@ -224,9 +226,7 @@ customElements.define(
         )
         .join("");
 
-      document.dispatchEvent(
-        new CustomEvent("pb-identity-change", { detail: active ?? null }),
-      );
+      setIdentity(active);
     }
   },
 );

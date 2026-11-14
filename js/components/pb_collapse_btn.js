@@ -1,22 +1,6 @@
-import { getPrefix } from "../_helpers.js";
+import { getPrefix } from "../lib/helpers.js";
 
-const STORAGE_PREFIX = "pb-collapsed-";
-
-function readCollapsed(key) {
-  try {
-    return localStorage.getItem(STORAGE_PREFIX + key) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function writeCollapsed(key, collapsed) {
-  try {
-    localStorage.setItem(STORAGE_PREFIX + key, collapsed ? "1" : "0");
-  } catch {
-    // not persisted, still applied for this session
-  }
-}
+import data, { setPanelCollapsed } from "../api/data.js";
 
 // The thin bar on the inner edge of a sidebar. Clicking it collapses the
 // sidebar down to just this bar (hiding .pb-panel-content), and again expands it.
@@ -37,6 +21,11 @@ customElements.define(
       return this.closest("pb-sidebar-left, pb-sidebar-right");
     }
 
+    // "pb-sidebar-left" -> "left"
+    get #side() {
+      return this.#panel?.localName.replace("pb-sidebar-", "");
+    }
+
     connectedCallback() {
       if (!this.#initialized) {
         this.#initialized = true;
@@ -45,16 +34,17 @@ customElements.define(
         this.#html.$button.addEventListener("click", () => this.toggle());
       }
 
-      const panel = this.#panel;
-      if (panel) this.#apply(readCollapsed(panel.localName));
+      const side = this.#side;
+      if (!side) return;
+      this.#apply(data.panels[side]);
+      document.addEventListener("pb-panel-change", (e) => {
+        if (e.detail.side === side) this.#apply(e.detail.collapsed);
+      });
     }
 
     toggle() {
-      const panel = this.#panel;
-      if (!panel) return;
-      const collapsed = !panel.classList.contains("pb-collapsed");
-      this.#apply(collapsed);
-      writeCollapsed(panel.localName, collapsed);
+      const side = this.#side;
+      if (side) setPanelCollapsed(side, !data.panels[side]);
     }
 
     #apply(collapsed) {

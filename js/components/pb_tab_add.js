@@ -1,4 +1,4 @@
-import { getPrefix } from "../_helpers.js";
+import { getPrefix } from "../lib/helpers.js";
 
 customElements.define(
   getPrefix("tab-add"),

@@ -1,8 +1,8 @@
-import { getPrefix } from "../_helpers.js";
+import { getPrefix } from "../lib/helpers.js";
 import "./pb-workarea-tree.js";
 import "./pb-workarea-backlog.js";
 import "./pb-workarea-contributors.js";
-import data from "../data.js";
+import data from "../api/data.js";
 
 customElements.define(
   getPrefix("workarea"),

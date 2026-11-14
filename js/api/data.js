@@ -1,4 +1,21 @@
-import AREAS from "./objects/areas.js";
+import AREAS from "../constants/areas.js";
+import { THEMES, ACCENTS } from "../constants/themes.js";
+import { load, save, upgrade, takeLegacy } from "../store/storage.js";
+
+// Before the store, theme and panel state used their own "pb-*" keys.
+upgrade((from, { save }) => {
+  if (from >= 1) return;
+  const theme = takeLegacy("pb-theme");
+  const accent = takeLegacy("pb-accent");
+  const left = takeLegacy("pb-collapsed-pb-sidebar-left");
+  const right = takeLegacy("pb-collapsed-pb-sidebar-right");
+  if (theme) save("theme", theme);
+  if (accent) save("accent", accent);
+  if (left !== null || right !== null) save("panels", { left: left === "1", right: right === "1" });
+});
+
+const isId = (list) => (id) => list.some((item) => item.id === id);
+const isPanels = (v) => v && typeof v.left === "boolean" && typeof v.right === "boolean";
 
 // Shared app state. Change it through the functions below so the rest of the
 // app hears about it via a document event.
@@ -14,6 +31,12 @@ const data = {
   area: "workarea", // a key of AREAS
   commit: null, // the commit selected in the tree, or null
   filter: "", // the toolbar search text
+  identity: null, // the active identity ({ id, name, avatarUrl, keyName }), or null
+
+  // Remembered between visits (see store/storage.js).
+  theme: load("theme", THEMES[0].id, isId(THEMES)),
+  accent: load("accent", ACCENTS[0].id, isId(ACCENTS)),
+  panels: load("panels", { left: false, right: false }, isPanels), // true = collapsed
 };
 
 export default data;
@@ -38,7 +61,7 @@ function activate(tab) {
 }
 
 export function setArea(area) {
-  if (!(area in AREAS) || area === data.area) return;
+  if (!AREAS.hasKey(area) || area === data.area) return;
   data.area = area;
   clearFilter(); // a filter makes no sense in another view
   emit("pb-area-change", area);
@@ -90,4 +113,32 @@ export function setFilter(text) {
   if (text === data.filter) return;
   data.filter = text;
   emit("pb-filter-change", text);
+}
+
+// Called with the active identity whenever the identity list is (re)loaded.
+export function setIdentity(identity) {
+  data.identity = identity ?? null;
+  emit("pb-identity-change", data.identity);
+}
+
+export function setTheme(id) {
+  if (!isId(THEMES)(id) || id === data.theme) return;
+  data.theme = id;
+  save("theme", id);
+  emit("pb-theme-change", id);
+}
+
+export function setAccent(id) {
+  if (!isId(ACCENTS)(id) || id === data.accent) return;
+  data.accent = id;
+  save("accent", id);
+  emit("pb-accent-change", id);
+}
+
+// side: "left" | "right"
+export function setPanelCollapsed(side, collapsed) {
+  if (!(side in data.panels) || data.panels[side] === collapsed) return;
+  data.panels[side] = collapsed;
+  save("panels", data.panels);
+  emit("pb-panel-change", { side, collapsed });
 }

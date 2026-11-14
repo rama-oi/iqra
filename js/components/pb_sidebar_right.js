@@ -1,7 +1,7 @@
-import { getPrefix } from "../_helpers.js";
+import { getPrefix } from "../lib/helpers.js";
 import "./pb_sidebar_right_commit.js";
 import "./pb_sidebar_right_preview.js";
-import data from "../data.js";
+import data from "../api/data.js";
 
 customElements.define(
   getPrefix("sidebar-right"),

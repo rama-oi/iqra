@@ -1,6 +1,6 @@
-import { getPrefix } from "../_helpers.js";
+import { getPrefix } from "../lib/helpers.js";
 import { cloneProject } from "../api/projects.js";
-import { openProject } from "../data.js";
+import { openProject } from "../api/data.js";
 
 // "https://host/user/repo.git" and "git@host:user/repo.git" both give "repo".
 function deriveName(url) {
