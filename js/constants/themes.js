@@ -11,4 +11,5 @@ export const ACCENTS = [
   { id: "blue", label: "Blue" },
   { id: "red", label: "Red" },
   { id: "peach", label: "Peach" },
+  { id: "green", label: "Green" },
 ];
