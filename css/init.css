@@ -1,6 +1,7 @@
-*,
-*::before,
-*::after {
+pb-app,
+pb-app *,
+pb-app *::before,
+pb-app *::after {
   box-sizing: border-box;
   font-family: inherit;
 }
