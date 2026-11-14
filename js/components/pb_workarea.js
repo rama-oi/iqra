@@ -1,7 +1,10 @@
 import { getPrefix } from "../lib/helpers.js";
-import "./pb-workarea-tree.js";
-import "./pb-workarea-backlog.js";
-import "./pb-workarea-contributors.js";
+import "./pb_workarea_empty.js";
+import "./pb_workarea_tree.js";
+import "./pb_workarea_diffs.js";
+import "./pb_workarea_merge.js";
+import "./pb_workarea_backlog.js";
+import "./pb_workarea_contributors.js";
 import data from "../api/data.js";
 
 customElements.define(
@@ -14,10 +17,7 @@ customElements.define(
 
     // Which children show is decided in CSS from the data-area attribute.
     #template = `
-      <pb-workarea-empty>
-        <p>No project open</p>
-        <button type="button" class="pb-btn open-clone">clone a repository</button>
-      </pb-workarea-empty>
+      <pb-workarea-empty></pb-workarea-empty>
       <pb-workarea-tree></pb-workarea-tree>
       <pb-workarea-diffs></pb-workarea-diffs>
       <pb-workarea-merge></pb-workarea-merge>
@@ -39,9 +39,6 @@ customElements.define(
         const syncEmpty = () => this.toggleAttribute("data-empty", !data.repository);
         document.addEventListener("pb-repository-change", syncEmpty);
         syncEmpty();
-        this.querySelector(".open-clone").addEventListener("click", () =>
-          document.dispatchEvent(new CustomEvent("pb-open-clone")),
-        );
       }
     }
   },

@@ -2,6 +2,7 @@ import { getPrefix, escapeHtml } from "../lib/helpers.js";
 import data, { closeTab, selectTab } from "../api/data.js";
 import "./pb_tab.js";
 import "./pb_tab_add.js";
+import "./pb_menu.js";
 
 customElements.define(
   getPrefix("tabbar"),
@@ -16,11 +17,7 @@ customElements.define(
       <pb-tab-add></pb-tab-add>
       <div class="pb-tabs"></div>
       <span class="pb-flex-separator"></span>
-      <pb-menu>
-        <button class="config" type="button">
-          <pb-avatar class="pb-medium"></pb-avatar>
-        </button>
-      </pb-menu>
+      <pb-menu></pb-menu>
     `;
 
     connectedCallback() {
@@ -28,18 +25,6 @@ customElements.define(
         this.#initialized = true;
         this.innerHTML = this.#template;
         this.#html.$tabs = this.querySelector(".pb-tabs");
-
-        const $avatar = this.querySelector('pb-avatar');
-        this.querySelector('.config').addEventListener('click', () =>
-          document.dispatchEvent(new CustomEvent('pb-open-settings')),
-        );
-        // the corner avatar always shows the active identity
-        const syncAvatar = () => {
-          $avatar.setAttribute('name', data.identity?.name ?? '');
-          $avatar.setAttribute('src', data.identity?.avatarUrl ?? '');
-        };
-        document.addEventListener('pb-identity-change', syncAvatar);
-        syncAvatar();
 
         this.#html.$tabs.addEventListener("pb-tab-select", (e) => selectTab(e.detail));
         this.#html.$tabs.addEventListener("pb-tab-close", (e) => closeTab(e.detail));

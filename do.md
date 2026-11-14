@@ -3,8 +3,11 @@
 - add catpuccin theme
 - define top components
 - collapse button for panels
-
 - the avatar in the corner should open a modal with different tabs
 -- main one switch profile
 -- theme picker
 -- about the app
+
+- need to rework architecture so:
+-- is easy to maintain
+-- css clases needs to be isolated. I think that using the same system that web components have where you don't defined anything in the first level since the first level is the native one should work, so adding "pb-"" to things like small (pb-small) will prevent a .small style coming from a third party library or web extention to override the values [there is a case where bootstrap would use the class small and be a problem for apps that use .small in their html]. there is also an alternative where you close the web component and external styles will never interfere but I want the components to be open so anyone can see the structure behind the app and get familiarized with them, same with modern css and the nesting that doesn't require third party code like sass or less.
