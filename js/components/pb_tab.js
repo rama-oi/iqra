@@ -16,7 +16,9 @@ customElements.define(
 
     #template = `
       <button class="pb-label" type="button"></button>
-      <button class="pb-close pb-danger" type="button" aria-label="Close tab" title="Close tab">x</button>
+      <button class="pb-close pb-danger" type="button" aria-label="Close tab" title="Close tab">
+        <span class="pb-icon">❌</span>
+      </button>
     `;
 
     get label() {

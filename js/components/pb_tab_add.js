@@ -10,7 +10,9 @@ customElements.define(
     };
 
     #template = `
-      <button class="pb-add pb-success" type="button" aria-label="Clone repository" title="Clone repository">+</button>
+      <button class="pb-add pb-success" type="button" aria-label="Clone repository" title="Clone repository">
+        <span class="pb-icon">+</span>
+      </button>
     `;
 
     connectedCallback() {

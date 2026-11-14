@@ -11,14 +11,30 @@ customElements.define(
 
     #template = `
       <pb-view-switcher></pb-view-switcher>
-      <button type="button" class="pb-restore">R</button>
-      <button type="button" class="pb-redo">Y</button>
-      <button type="button" class="pb-pull">P</button>
-      <button type="button" class="pb-push">S</button>
-      <button type="button" class="pb-branch">B</button>
-      <button type="button" class="pb-stash">T</button>
-      <button type="button" class="pb-pop">O</button>
-      <button type="button" class="pb-terminal">M</button>
+      <button type="button" class="pb-restore">
+        <span class="pb-icon">⬅</span>
+      </button>
+      <button type="button" class="pb-redo">
+        <span class="pb-icon">➡</span>
+      </button>
+      <button type="button" class="pb-pull">
+        <span class="pb-icon">🔽</span>
+      </button>
+      <button type="button" class="pb-push">
+        <span class="pb-icon">🔼</span>
+      </button>
+      <button type="button" class="pb-branch">
+        <span class="pb-icon">🌱</span>
+      </button>
+      <button type="button" class="pb-stash">
+        <span class="pb-icon">⬇</span>
+      </button>
+      <button type="button" class="pb-pop">
+        <span class="pb-icon">⬆</span>
+      </button>
+      <button type="button" class="pb-terminal">
+        <span class="pb-icon">🖥</span>
+      </button>
       
     `;
 

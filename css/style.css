@@ -16,6 +16,7 @@ pb-app {
   width: 100%;
   height: 100%;
   overflow: hidden;
+
   pb-collapse-btn,
   pb-tabs,
   pb-tab,
@@ -287,6 +288,14 @@ pb-app {
   }
   .pb-lane-7 {
     --c: var(--graph-7);
+  }
+
+  .pb-close,
+  .pb-remove,
+  .pb-add {
+    .pb-icon {
+      font-size: .7rem;
+    }
   }
 
   pb-workarea-tree {

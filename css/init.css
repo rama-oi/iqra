@@ -14,6 +14,31 @@ pb-app *::after {
   src: url("../fonts/jersey25_regular.ttf") format("truetype");
 }
 
+@font-face {
+  font-family: "iqra";
+  src:
+    url("../fonts/iqra.woff2") format("woff2"),
+    url("../fonts/iqra.ttf") format("truetype"),
+    url("../fonts/iqra.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+.pb-icon {
+  /* Use !important to prevent extensions from overriding this font. */
+  font-family: "iqra" !important;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+
+  /* Better Font Rendering =========== */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 :root {
   --yellow: #f9e2af;
   --red: #f38ba8;
@@ -47,7 +72,7 @@ pb-app *::after {
   --space-between-blocks: 1rem;
   --space-between-inline-items: 0.5rem;
 
-  --collapse-btn-width: .5rem;
+  --collapse-btn-width: 0.5rem;
 
   --row-height: 30px;
   --column-branch-width: 260px;

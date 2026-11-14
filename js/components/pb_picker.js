@@ -37,7 +37,9 @@ customElements.define(
       <dialog>
         <header>
           <h2></h2>
-          <button type="button" class="pb-close pb-danger" aria-label="Close">x</button>
+          <button type="button" class="pb-close pb-danger" aria-label="Close">
+            <span class="pb-icon">❌</span>
+          </button>
         </header>
         <input type="search" class="pb-filter" placeholder="Filter…" autofocus />
         <p class="pb-status" hidden></p>

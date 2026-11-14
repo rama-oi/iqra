@@ -124,7 +124,9 @@ customElements.define(
                 ? `<span class="pb-badge">Active</span>`
                 : `<button type="button" class="pb-select">Use</button>`
             }
-            <button type="button" class="pb-remove pb-danger" aria-label="Remove ${escapeHtml(i.name)}">x</button>
+            <button type="button" class="pb-remove pb-danger" aria-label="Remove ${escapeHtml(i.name)}">
+              <span class="pb-icon">❌</span>
+            </button>
           </li>`,
         )
         .join("");

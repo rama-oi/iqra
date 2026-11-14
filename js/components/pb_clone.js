@@ -27,7 +27,9 @@ customElements.define(
       <dialog>
         <header>
           <h2>Clone repository</h2>
-          <button type="button" class="pb-close pb-danger" aria-label="Close">x</button>
+          <button type="button" class="pb-close pb-danger" aria-label="Close">
+            <span class="pb-icon">❌</span>
+          </button>
         </header>
         <form>
           <label>

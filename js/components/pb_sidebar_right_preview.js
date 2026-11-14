@@ -25,7 +25,9 @@ customElements.define(
       <div class="pb-wrapper">
         <div class="pb-preview-bar">
           <p class="pb-hash"></p>
-          <button type="button" class="pb-close pb-danger" aria-label="Close preview" title="Close (Esc)">x</button>
+          <button type="button" class="pb-close pb-danger" aria-label="Close preview" title="Close (Esc)">
+            <span class="pb-icon">❌</span>
+          </button>
         </div>
 
         <div class="pb-user">
