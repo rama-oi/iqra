@@ -135,6 +135,15 @@ export function setFile(file) {
   emit("pb-file-select", file);
 }
 
+// One step back, for the Escape key: the diff first, then the commit preview.
+// Returns false when there is nothing to close.
+export function goBack() {
+  if (data.file) setFile(null);
+  else if (data.commit) setCommit(null);
+  else return false;
+  return true;
+}
+
 export const isSelectedFile = (file) => !!data.file && sameFile(file, data.file);
 
 // What the work area shows. One answer, so the CSS only reads data-view.

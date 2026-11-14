@@ -564,6 +564,21 @@ pb-app {
       grid-template-columns: var(--collapse-btn-width) 1fr;
 
       pb-sidebar-right-preview {
+        .pb-preview-bar {
+          display: flex;
+          align-items: center;
+          gap: var(--space-between-inline-items);
+
+          .pb-hash {
+            flex: 1 1 auto;
+            min-width: 0;
+          }
+
+          .pb-close {
+            flex: none;
+          }
+        }
+
         .pb-user {
           display: flex;
           gap: var(--space-between-inline-items);
@@ -571,7 +586,6 @@ pb-app {
 
         .pb-hash {
           color: var(--overlay-0);
-          text-align: right;
           word-break: break-all;
         }
 

@@ -1,4 +1,5 @@
 import { getPrefix } from "../lib/helpers.js";
+import { goBack } from "../api/data.js";
 
 import "./pb_avatar.js";
 import "./pb_collapse_btn.js";
@@ -40,6 +41,15 @@ customElements.define(
       if (this.#initialized) return;
       this.#initialized = true;
       this.innerHTML = this.#template;
+
+      // Escape steps back (diff, then commit preview), unless it already means
+      // something else: closing a dialog or menu, or leaving a text field.
+      document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape" || e.defaultPrevented) return;
+        if (document.querySelector("dialog[open], :popover-open")) return;
+        if (e.target.closest?.("input, textarea, select, [contenteditable]")) return;
+        if (goBack()) e.preventDefault();
+      });
     }
   },
 );

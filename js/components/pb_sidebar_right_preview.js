@@ -1,5 +1,5 @@
 import { getPrefix, escapeHtml } from "../lib/helpers.js";
-import data, { setFile, isSelectedFile } from "../api/data.js";
+import data, { setCommit, setFile, isSelectedFile } from "../api/data.js";
 
 // First line is the subject, whatever follows the first blank line is the body.
 function splitMessage(message) {
@@ -23,7 +23,10 @@ customElements.define(
 
     #template = `
       <div class="pb-wrapper">
-        <p class="pb-hash"></p>
+        <div class="pb-preview-bar">
+          <p class="pb-hash"></p>
+          <button type="button" class="pb-close pb-danger" aria-label="Close preview" title="Close (Esc)">x</button>
+        </div>
 
         <div class="pb-user">
           <pb-avatar class="pb-large"></pb-avatar>
@@ -61,6 +64,7 @@ customElements.define(
         $files: $(".pb-files .pb-content"),
       };
 
+      this.querySelector(".pb-close").addEventListener("click", () => setCommit(null));
       document.addEventListener("pb-commit-select", () => this.#render());
       document.addEventListener("pb-file-select", () => this.#markSelected());
 
