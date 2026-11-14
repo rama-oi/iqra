@@ -56,7 +56,7 @@ pb-app *::after {
 
   --accent: var(--yellow);
   --hover: var(--overlay-0);
-  --border: #404040;
+  --border: var(--surface-2);
   --disabled: var(--surface-2);
   --danger: var(--red);
   --success: var(--green);

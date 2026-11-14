@@ -74,6 +74,11 @@ pb-app {
     resize: none;
   }
 
+  textarea::placeholder,
+  input::placeholder {
+    color: var(--surface-0);
+  }
+
   hr {
     width: 100%;
     border-color: var(--border);
@@ -154,9 +159,21 @@ pb-app {
         background-color: var(--surface-1);
         li {
           button {
+            display: flex;
+            align-items: center;
+            gap: var(--space-between-inline-items);
             padding: var(--space-between-blocks);
             width: 100%;
             text-align: left;
+
+            .pb-icon {
+              flex: none;
+            }
+          }
+
+          &.pb-empty {
+            padding: var(--space-between-blocks);
+            color: var(--overlay-0);
           }
         }
       }
@@ -217,6 +234,11 @@ pb-app {
     margin: 0;
     padding: 0;
     list-style: none;
+
+    .pb-icon {
+      font-size: 0.7rem;
+      color: var(--accent);
+    }
   }
 
   .pb-flex-separator {
@@ -294,7 +316,7 @@ pb-app {
   .pb-remove,
   .pb-add {
     .pb-icon {
-      font-size: .7rem;
+      font-size: 0.7rem;
     }
   }
 

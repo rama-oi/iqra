@@ -12,7 +12,7 @@
   --surface-2: #5b6078;
   --overlay-0: #6e738d;
   --text: #cad3f5;
-  --border: var(--surface-1);
+  --border: var(--surface-2);
   --accent: var(--yellow);
   --hover: var(--overlay-0);
   --disabled: var(--surface-2);
@@ -42,7 +42,7 @@
   --surface-2: #626880;
   --overlay-0: #737994;
   --text: #c6d0f5;
-  --border: var(--surface-1);
+  --border: var(--surface-2);
   --accent: var(--yellow);
   --hover: var(--overlay-0);
   --disabled: var(--surface-2);
@@ -72,7 +72,7 @@
   --surface-2: #acb0be;
   --overlay-0: #9ca0b0;
   --text: #4c4f69;
-  --border: var(--surface-1);
+  --border: var(--surface-2);
   --accent: var(--yellow);
   --hover: var(--overlay-0);
   --disabled: var(--surface-2);

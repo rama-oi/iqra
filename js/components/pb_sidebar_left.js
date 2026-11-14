@@ -1,6 +1,11 @@
 import { getPrefix, escapeHtml } from "../lib/helpers.js";
 import data, { setBranch } from "../api/data.js";
 import { fetchBranches } from "../api/projects.js";
+import { fetchStashes } from "../api/stashes.js";
+
+// Decorative pixel icons (the iqra font maps these emoji to its own glyphs).
+const ICON_BRANCH = `<span class="pb-icon" aria-hidden="true">🌱</span>`;
+const ICON_ARCHIVE = `<span class="pb-icon" aria-hidden="true">🗃</span>`;
 
 customElements.define(
   getPrefix("sidebar-left"),
@@ -8,6 +13,7 @@ customElements.define(
     #initialized = false;
     #loadId = 0;
     #branches = [];
+    #stashes = [];
     #repository = data.repository;
 
     #template = `
@@ -20,14 +26,19 @@ customElements.define(
         <details class="pb-remote" open>
           <summary>Remote</summary>
           <ul class="pb-content">
-            <li><button type="button">v10</button></li>
+            <li><button type="button">${ICON_BRANCH}v10</button></li>
           </ul>
+        </details>
+
+        <details class="pb-stashes" open>
+          <summary>Stashes</summary>
+          <ul class="pb-content"></ul>
         </details>
 
         <details class="pb-submodules" open>
           <summary>Sub Modules</summary>
           <ul class="pb-content">
-            <li><button type="button">v10</button></li>
+            <li><button type="button">${ICON_ARCHIVE}v10</button></li>
           </ul>
         </details>
       </div>
@@ -53,11 +64,17 @@ customElements.define(
       }
     }
 
-    // Branches only change with the project, so fetch once per project.
+    // Branches and stashes only change with the project, so fetch once per project.
     async #load() {
       const loadId = ++this.#loadId;
-      this.#branches = data.repository ? await fetchBranches(data.repository).catch(() => []) : [];
-      if (loadId === this.#loadId) this.#render();
+      const repo = data.repository;
+      const [branches, stashes] = repo
+        ? await Promise.all([fetchBranches(repo).catch(() => []), fetchStashes(repo).catch(() => [])])
+        : [[], []];
+      if (loadId !== this.#loadId) return;
+      this.#branches = branches;
+      this.#stashes = stashes;
+      this.#render();
     }
 
     #render() {
@@ -68,9 +85,18 @@ customElements.define(
       this.querySelector(".pb-local .pb-content").innerHTML = this.#branches
         .map(
           (b) =>
-            `<li><button type="button" data-branch="${escapeHtml(b.name)}"${b.name === data.branch ? ' class="pb-active"' : ""}>${escapeHtml(b.name)}</button></li>`,
+            `<li><button type="button" data-branch="${escapeHtml(b.name)}"${b.name === data.branch ? ' class="pb-active"' : ""}>${ICON_BRANCH}${escapeHtml(b.name)}</button></li>`,
         )
         .join("");
+
+      this.querySelector(".pb-stashes .pb-content").innerHTML = this.#stashes.length
+        ? this.#stashes
+            .map(
+              (st) =>
+                `<li><button type="button" title="${escapeHtml(`${st.id} on ${st.branch}`)}">${ICON_ARCHIVE}${escapeHtml(st.message)}</button></li>`,
+            )
+            .join("")
+        : `<li class="pb-empty">No stashes.</li>`;
     }
 
   },
