@@ -41,6 +41,13 @@ const TABLE = [
   ["k", [], "Start boilerplate", "fikret", []],
 ];
 
+// Changed files of some commits (the preview panel lists them).
+const FILES = {
+  a: [{ path: "js/graph/render-row.js", status: "A" }, { path: "js/graph/layout.js", status: "M" }],
+  b: [{ path: "js/components/pb_workarea_tree.js", status: "A" }],
+  e: [{ path: "js/components/pb_toolbar.js", status: "A" }, { path: "js/components/pb_view_switcher.js", status: "A" }],
+};
+
 const NEWEST = Date.parse("2026-11-12T18:30:00Z");
 const HOUR = 3_600_000;
 
@@ -57,6 +64,7 @@ export const MOCK_COMMITS_RESPONSE = {
       committedAt: new Date(NEWEST - i * 5 * HOUR - (i % 3) * 17 * 60_000).toISOString(),
       message,
       refs,
+      files: FILES[id] ?? [],
     };
   }),
   // Pagination: pass this back as ?cursor= to get the next page, null = end.

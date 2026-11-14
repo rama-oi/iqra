@@ -37,11 +37,11 @@ customElements.define(
       <dialog>
         <header>
           <h2></h2>
-          <button type="button" class="close pb-danger" aria-label="Close">x</button>
+          <button type="button" class="pb-close pb-danger" aria-label="Close">x</button>
         </header>
-        <input type="search" class="filter" placeholder="Filter…" autofocus />
-        <p class="status" hidden></p>
-        <ul class="list"></ul>
+        <input type="search" class="pb-filter" placeholder="Filter…" autofocus />
+        <p class="pb-status" hidden></p>
+        <ul class="pb-list"></ul>
       </dialog>
     `;
 
@@ -54,9 +54,9 @@ customElements.define(
       this.#html = {
         $dialog: $("dialog"),
         $title: $("h2"),
-        $filter: $(".filter"),
-        $list: $(".list"),
-        $status: $(".status"),
+        $filter: $(".pb-filter"),
+        $list: $(".pb-list"),
+        $status: $(".pb-status"),
       };
 
       const { $dialog, $filter } = this.#html;
@@ -117,9 +117,9 @@ customElements.define(
           const active = i.id === this.#current;
           return `
           <li>
-            <button type="button" class="item${active ? " pb-active" : ""}" data-id="${escapeHtml(i.id)}"${active ? ' aria-current="true"' : ""}>
-              <span class="label">${escapeHtml(i.label)}</span>
-              ${i.description ? `<span class="description">${escapeHtml(i.description)}</span>` : ""}
+            <button type="button" class="pb-item${active ? " pb-active" : ""}" data-id="${escapeHtml(i.id)}"${active ? ' aria-current="true"' : ""}>
+              <span class="pb-label">${escapeHtml(i.label)}</span>
+              ${i.description ? `<span class="pb-description">${escapeHtml(i.description)}</span>` : ""}
             </button>
           </li>`;
         })
@@ -144,7 +144,7 @@ customElements.define(
 
       const btn = e.target.closest("button");
       if (!btn) return;
-      if (btn.classList.contains("close")) return dialog.close();
+      if (btn.classList.contains("pb-close")) return dialog.close();
       if (btn.dataset.id !== undefined) this.#select(btn.dataset.id);
     }
 

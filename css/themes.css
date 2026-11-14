@@ -1,4 +1,4 @@
-.catppuccin-macchiato {
+.pb-theme-catppuccin-macchiato {
   color-scheme: dark;
   --yellow: #eed49f;
   --red: #ed8796;
@@ -28,7 +28,7 @@
   --graph-7: #ed8796;
 }
 
-.catppuccin-frappe {
+.pb-theme-catppuccin-frappe {
   color-scheme: dark;
   --yellow: #e5c890;
   --red: #e78284;
@@ -58,7 +58,7 @@
   --graph-7: #e78284;
 }
 
-.catppuccin-latte {
+.pb-theme-catppuccin-latte {
   color-scheme: light;
   --yellow: #df8e1d;
   --red: #d20f39;

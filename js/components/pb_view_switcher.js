@@ -18,14 +18,14 @@ customElements.define(
     };
 
     #template = `
-      <button type="button" class="area" popovertarget="pb-area-menu" aria-haspopup="menu"></button>
-      <ul id="pb-area-menu" class="area-menu" popover role="menu"></ul>
-      <span class="arrow-path"></span>
-      <button type="button" class="repository" title="Switch project"></button>
-      <span class="arrow-path"></span>
-      <button type="button" class="branch" title="Switch branch"></button>
-      <span class="arrow-path"></span>
-      <input type="search" class="search" />
+      <button type="button" class="pb-area" popovertarget="pb-area-menu" aria-haspopup="menu"></button>
+      <ul id="pb-area-menu" class="pb-area-menu" popover role="menu"></ul>
+      <span class="pb-arrow-path"></span>
+      <button type="button" class="pb-repository" title="Switch project"></button>
+      <span class="pb-arrow-path"></span>
+      <button type="button" class="pb-branch" title="Switch branch"></button>
+      <span class="pb-arrow-path"></span>
+      <input type="search" class="pb-search" />
     `;
 
     connectedCallback() {
@@ -34,11 +34,11 @@ customElements.define(
 
       this.innerHTML = this.#template;
 
-      this.#html.$area = this.querySelector(".area");
-      this.#html.$areaMenu = this.querySelector(".area-menu");
-      this.#html.$repository = this.querySelector(".repository");
-      this.#html.$branch = this.querySelector(".branch");
-      this.#html.$search = this.querySelector(".search");
+      this.#html.$area = this.querySelector(".pb-area");
+      this.#html.$areaMenu = this.querySelector(".pb-area-menu");
+      this.#html.$repository = this.querySelector(".pb-repository");
+      this.#html.$branch = this.querySelector(".pb-branch");
+      this.#html.$search = this.querySelector(".pb-search");
 
       const { $area, $areaMenu, $repository, $branch, $search } = this.#html;
 

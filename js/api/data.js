@@ -30,6 +30,7 @@ const data = {
   branch: "v10",
   area: "workarea", // a key of AREAS
   commit: null, // the commit selected in the tree, or null
+  file: null, // the file whose diff shows: { path, status, staged, commit }, or null
   filter: "", // the toolbar search text
   identity: null, // the active identity ({ id, name, avatarUrl, keyName }), or null
 
@@ -44,6 +45,12 @@ export default data;
 const emit = (type, detail) =>
   document.dispatchEvent(new CustomEvent(type, { detail }));
 
+function clearFile() {
+  if (!data.file) return;
+  data.file = null;
+  emit("pb-file-select", null);
+}
+
 function clearFilter() {
   if (!data.filter) return;
   data.filter = "";
@@ -55,6 +62,7 @@ function activate(tab) {
   data.repository = tab?.name ?? null;
   data.branch = tab?.branch ?? null;
   data.commit = null;
+  clearFile();
   emit("pb-commit-select", null);
   clearFilter();
   emit("pb-repository-change", data.repository);
@@ -63,6 +71,7 @@ function activate(tab) {
 export function setArea(area) {
   if (!AREAS.hasKey(area) || area === data.area) return;
   data.area = area;
+  clearFile(); // choosing a view from the menu leaves the diff
   clearFilter(); // a filter makes no sense in another view
   emit("pb-area-change", area);
 }
@@ -98,6 +107,7 @@ export function setBranch(branch) {
   const tab = data.tabs.find((t) => t.name === data.repository);
   if (tab) tab.branch = branch;
   data.commit = null;
+  clearFile();
   emit("pb-commit-select", null);
   emit("pb-branch-change", branch);
 }
@@ -106,7 +116,35 @@ export function setBranch(branch) {
 export function setCommit(commit) {
   if ((commit?.hash ?? null) === (data.commit?.hash ?? null)) return;
   data.commit = commit;
+  clearFile();
   emit("pb-commit-select", commit);
+}
+
+const sameFile = (a, b) =>
+  a?.path === b?.path &&
+  !!a?.staged === !!b?.staged &&
+  (a?.commit ?? null) === (b?.commit ?? null) &&
+  !!a === !!b;
+
+// A file of the working tree ({ path, status, staged }) or of the selected commit
+// ({ path, status, commit }). Pass null to close the diff.
+export function setFile(file) {
+  file = file ?? null;
+  if (sameFile(file, data.file)) return;
+  data.file = file;
+  emit("pb-file-select", file);
+}
+
+export const isSelectedFile = (file) => !!data.file && sameFile(file, data.file);
+
+// What the work area shows. One answer, so the CSS only reads data-view.
+// Order matters: with no project only the empty message shows, otherwise a
+// selected file's diff covers whichever view the area menu picked.
+// (A merge conflict will go between the two, above the diff.)
+export function getView() {
+  if (!data.repository) return "empty";
+  if (data.file) return "diffs";
+  return data.area;
 }
 
 export function setFilter(text) {

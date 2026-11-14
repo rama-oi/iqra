@@ -8,7 +8,7 @@ customElements.define(
 
     #template = `
       <p>No project open</p>
-      <button type="button" class="pb-btn open-clone">clone a repository</button>
+      <button type="button" class="pb-btn pb-open-clone">clone a repository</button>
     `;
 
     connectedCallback() {
@@ -16,7 +16,7 @@ customElements.define(
       this.#initialized = true;
       this.innerHTML = this.#template;
 
-      this.querySelector(".open-clone").addEventListener("click", () =>
+      this.querySelector(".pb-open-clone").addEventListener("click", () =>
         document.dispatchEvent(new CustomEvent("pb-open-clone")),
       );
     }

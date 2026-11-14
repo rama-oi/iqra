@@ -10,7 +10,7 @@ customElements.define(
     #template = `
       <h2>${escapeHtml(APP.name)} v${escapeHtml(APP.version)}</h2>
       <p>${escapeHtml(APP.description)}</p>
-      <ul class="claims">
+      <ul class="pb-claims">
         <li>GPL 3.0</li>
       </ul>
     `;

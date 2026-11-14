@@ -12,21 +12,21 @@ customElements.define(
 
     #template = `
       <div class="pb-panel-content">
-        <details class="local" open>
+        <details class="pb-local" open>
           <summary>Local</summary>
-          <ul class="content"></ul>
+          <ul class="pb-content"></ul>
         </details>
 
-        <details class="remote" open>
+        <details class="pb-remote" open>
           <summary>Remote</summary>
-          <ul class="content">
+          <ul class="pb-content">
             <li><button type="button">v10</button></li>
           </ul>
         </details>
 
-        <details class="submodules" open>
+        <details class="pb-submodules" open>
           <summary>Sub Modules</summary>
-          <ul class="content">
+          <ul class="pb-content">
             <li><button type="button">v10</button></li>
           </ul>
         </details>
@@ -42,7 +42,7 @@ customElements.define(
         this.innerHTML = this.#template;
 
         // Click a local branch to switch to it.
-        this.querySelector(".local .content").addEventListener("click", (e) => {
+        this.querySelector(".pb-local .pb-content").addEventListener("click", (e) => {
           const name = e.target.closest("button[data-branch]")?.dataset.branch;
           if (name) setBranch(name);
         });
@@ -65,7 +65,7 @@ customElements.define(
         this.#repository = data.repository;
         return this.#load();
       }
-      this.querySelector(".local .content").innerHTML = this.#branches
+      this.querySelector(".pb-local .pb-content").innerHTML = this.#branches
         .map(
           (b) =>
             `<li><button type="button" data-branch="${escapeHtml(b.name)}"${b.name === data.branch ? ' class="pb-active"' : ""}>${escapeHtml(b.name)}</button></li>`,

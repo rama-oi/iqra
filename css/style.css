@@ -445,7 +445,7 @@ header {
       border-inline-end: 1px solid var(--border);
       display: flex;
       height: 100%;
-      .label {
+      .pb-label {
         flex-grow: 1;
       }
     }
@@ -479,14 +479,14 @@ header {
       align-items: center;
       flex-grow: 1;
 
-      span.arrow-path {
+      span.pb-arrow-path {
         &::before {
           content: "/";
         }
       }
     }
 
-    .search {
+    .pb-search {
       margin-inline: var(--space-between-blocks);
       flex-grow: 1;
     }
@@ -614,7 +614,7 @@ pb-settings dialog {
       "side body";
   }
 
-  > .close {
+  > .pb-close {
     position: absolute;
     top: 0;
     right: 0;
@@ -623,7 +623,7 @@ pb-settings dialog {
     padding: 0.4rem 0.8rem;
   }
 
-  > .sidebar {
+  > .pb-sidebar {
     grid-area: side;
     background-color: var(--base);
     border-inline-end: 1px solid var(--border);
@@ -649,7 +649,7 @@ pb-settings dialog {
     }
   }
 
-  > .body {
+  > .pb-body {
     grid-area: body;
     display: none;
     flex-direction: column;
@@ -675,18 +675,18 @@ pb-settings dialog {
     }
   }
 
-  .user,
-  .users li {
+  .pb-user,
+  .pb-users li {
     display: flex;
     align-items: center;
     gap: var(--space-between-inline-items);
   }
 
-  .user .name {
+  .pb-user .pb-name {
     font-size: 1.4rem;
   }
 
-  .users {
+  .pb-users {
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -699,14 +699,14 @@ pb-settings dialog {
       &.pb-active {
         border-inline-start-color: var(--accent);
       }
-      .name {
+      .pb-name {
         flex-grow: 1;
       }
-      .key,
-      .badge {
+      .pb-key,
+      .pb-badge {
         color: var(--disabled);
       }
-      .badge {
+      .pb-badge {
         color: var(--success);
       }
       button {
@@ -716,7 +716,7 @@ pb-settings dialog {
     }
   }
 
-  .themes {
+  .pb-themes {
     display: flex;
     flex-direction: column;
     gap: var(--space-between-inline-items);
@@ -732,7 +732,7 @@ pb-settings dialog {
     }
   }
 
-  .claims {
+  .pb-claims {
     list-style: disc inside;
   }
 
@@ -742,11 +742,17 @@ pb-settings dialog {
 }
 
 /* --- workarea: which view shows ------------------------------------- */
-pb-workarea[data-area="backlog"] > :not(pb-workarea-backlog),
-pb-workarea[data-area="contributors"] > :not(pb-workarea-contributors),
-pb-workarea:not([data-area="backlog"]) > pb-workarea-backlog,
-pb-workarea:not([data-area="contributors"]) > pb-workarea-contributors {
+/* The workarea sets data-view (see getView in data.js): one child shows. */
+pb-workarea[data-view] > * {
   display: none;
+}
+
+pb-workarea[data-view="workarea"] > pb-workarea-tree,
+pb-workarea[data-view="diffs"] > pb-workarea-diffs,
+pb-workarea[data-view="merge"] > pb-workarea-merge,
+pb-workarea[data-view="backlog"] > pb-workarea-backlog,
+pb-workarea[data-view="contributors"] > pb-workarea-contributors {
+  display: block;
 }
 
 pb-workarea-backlog,
@@ -854,7 +860,7 @@ pb-workarea-contributors .pb-contributors li {
 }
 
 /* --- toolbar area menu ---------------------------------------------- */
-pb-view-switcher .area-menu {
+pb-view-switcher .pb-area-menu {
   position: fixed;
   inset: auto;
   margin: 0;
@@ -901,29 +907,29 @@ pb-picker dialog {
     padding-inline-start: var(--space-between-blocks);
     border-block-end: 1px solid var(--border);
 
-    .close {
+    .pb-close {
       height: auto;
       padding: 0.6rem 0.8rem;
     }
   }
 
-  .filter {
+  .pb-filter {
     margin: var(--space-between-inline-items);
   }
 
-  .status {
+  .pb-status {
     padding: var(--space-between-inline-items) var(--space-between-blocks);
   }
-  .status.pb-error {
+  .pb-status.pb-error {
     color: var(--danger);
   }
 
-  .list {
+  .pb-list {
     overflow: auto;
     min-height: 0;
   }
 
-  .item {
+  .pb-item {
     display: flex;
     justify-content: space-between;
     gap: var(--space-between-blocks);
@@ -934,7 +940,7 @@ pb-picker dialog {
     color: inherit;
     border-inline-start: 3px solid transparent;
 
-    .description {
+    .pb-description {
       color: var(--disabled);
     }
 
@@ -951,13 +957,11 @@ pb-workarea-contributors .pb-contributors li[hidden] {
 }
 
 /* --- workarea: no project open -------------------------------------- */
-pb-workarea[data-empty] > :not(pb-workarea-empty),
-pb-workarea:not([data-empty]) > pb-workarea-empty {
-  display: none;
+pb-workarea[data-view="empty"] > pb-workarea-empty {
+  display: flex;
 }
 
 pb-workarea-empty {
-  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -1014,7 +1018,7 @@ pb-clone dialog {
     padding-inline-start: var(--space-between-blocks);
     border-block-end: 1px solid var(--border);
 
-    .close {
+    .pb-close {
       height: auto;
       padding: 0.6rem 0.8rem;
     }
@@ -1031,5 +1035,127 @@ pb-clone dialog {
 
   .pb-error {
     color: var(--danger);
+  }
+}
+
+/* --- changed files (commit panel and commit preview) ---------------- */
+.pb-file {
+  display: flex;
+  align-items: center;
+  gap: var(--space-between-inline-items);
+  min-width: 0;
+
+  &.pb-active {
+    background-color: var(--surface-2);
+    color: var(--accent);
+  }
+
+  .pb-file-path {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.pb-file-status {
+  flex: none;
+  width: 1.4em;
+  text-align: center;
+  color: var(--base);
+  background-color: var(--overlay-0);
+
+  &[data-status="A"] {
+    background-color: var(--success);
+  }
+  &[data-status="M"] {
+    background-color: var(--accent);
+  }
+  &[data-status="D"] {
+    background-color: var(--danger);
+  }
+}
+
+/* --- workarea: diff ------------------------------------------------- */
+pb-workarea-diffs {
+  .pb-table-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: var(--surface-0);
+  }
+
+  .pb-diff-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-between-inline-items);
+    padding: var(--space-between-inline-items);
+  }
+
+  .pb-diff-path {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pb-diff-where {
+    color: var(--overlay-0);
+  }
+
+  .pb-diff-close {
+    height: auto;
+  }
+
+  .pb-status,
+  .pb-error {
+    padding: var(--space-between-blocks);
+  }
+  .pb-error {
+    color: var(--danger);
+  }
+
+  .pb-diff {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 0.8em;
+    overflow-x: auto;
+  }
+
+  .pb-diff-hunk {
+    padding: 2px var(--space-between-inline-items);
+    color: var(--overlay-0);
+    background-color: var(--surface-1);
+  }
+
+  .pb-diff-line {
+    display: grid;
+    grid-template-columns: 4ch 4ch 2ch minmax(0, 1fr);
+    gap: var(--space-between-inline-items);
+    min-width: max-content;
+
+    &.pb-add {
+      background-color: color-mix(in srgb, var(--success) 22%, transparent);
+    }
+    &.pb-del {
+      background-color: color-mix(in srgb, var(--danger) 22%, transparent);
+    }
+    &.pb-note {
+      color: var(--overlay-0);
+      font-style: italic;
+    }
+  }
+
+  .pb-diff-no {
+    text-align: right;
+    color: var(--overlay-0);
+    user-select: none;
+  }
+
+  .pb-diff-sign {
+    user-select: none;
+  }
+
+  .pb-diff-text {
+    white-space: pre;
   }
 }

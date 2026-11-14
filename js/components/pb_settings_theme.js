@@ -23,10 +23,10 @@ customElements.define(
 
     #template = `
       <p>Theme</p>
-      <ul class="themes">${radios("theme", THEMES)}</ul>
+      <ul class="pb-themes">${radios("theme", THEMES)}</ul>
 
       <p>Accent</p>
-      <ul class="themes">${radios("accent", ACCENTS)}</ul>
+      <ul class="pb-themes">${radios("accent", ACCENTS)}</ul>
     `;
 
     connectedCallback() {

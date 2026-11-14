@@ -11,14 +11,14 @@ customElements.define(
 
     #template = `
       <pb-view-switcher></pb-view-switcher>
-      <button type="button" class="restore">R</button>
-      <button type="button" class="redo">Y</button>
-      <button type="button" class="pull">P</button>
-      <button type="button" class="push">S</button>
-      <button type="button" class="branch">B</button>
-      <button type="button" class="stash">T</button>
-      <button type="button" class="pop">O</button>
-      <button type="button" class="terminal">M</button>
+      <button type="button" class="pb-restore">R</button>
+      <button type="button" class="pb-redo">Y</button>
+      <button type="button" class="pb-pull">P</button>
+      <button type="button" class="pb-push">S</button>
+      <button type="button" class="pb-branch">B</button>
+      <button type="button" class="pb-stash">T</button>
+      <button type="button" class="pb-pop">O</button>
+      <button type="button" class="pb-terminal">M</button>
       
     `;
 

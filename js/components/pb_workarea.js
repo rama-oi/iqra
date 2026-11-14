@@ -5,7 +5,7 @@ import "./pb_workarea_diffs.js";
 import "./pb_workarea_merge.js";
 import "./pb_workarea_backlog.js";
 import "./pb_workarea_contributors.js";
-import data from "../api/data.js";
+import data, { getView } from "../api/data.js";
 
 customElements.define(
   getPrefix("workarea"),
@@ -15,7 +15,7 @@ customElements.define(
     #html = {
     };
 
-    // Which children show is decided in CSS from the data-area attribute.
+    // Which child shows is decided in CSS from data-view (see getView in data.js).
     #template = `
       <pb-workarea-empty></pb-workarea-empty>
       <pb-workarea-tree></pb-workarea-tree>
@@ -30,15 +30,12 @@ customElements.define(
         this.#initialized = true;
         this.innerHTML = this.#template;
 
-        this.dataset.area = data.area;
-        document.addEventListener("pb-area-change", () => {
-          this.dataset.area = data.area;
-        });
-
-        // with every tab closed only the empty message shows
-        const syncEmpty = () => this.toggleAttribute("data-empty", !data.repository);
-        document.addEventListener("pb-repository-change", syncEmpty);
-        syncEmpty();
+        // which child shows is decided in CSS from this one attribute
+        const sync = () => (this.dataset.view = getView());
+        for (const type of ["pb-area-change", "pb-repository-change", "pb-file-select"]) {
+          document.addEventListener(type, sync);
+        }
+        sync();
       }
     }
   },

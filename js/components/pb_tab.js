@@ -15,8 +15,8 @@ customElements.define(
     };
 
     #template = `
-      <button class="label" type="button"></button>
-      <button class="close pb-danger" type="button" aria-label="Close tab" title="Close tab">x</button>
+      <button class="pb-label" type="button"></button>
+      <button class="pb-close pb-danger" type="button" aria-label="Close tab" title="Close tab">x</button>
     `;
 
     get label() {
@@ -33,8 +33,8 @@ customElements.define(
 
         this.innerHTML = this.#template;
 
-        this.#html.$label = this.querySelector(".label");
-        this.#html.$closeBtn = this.querySelector(".close");
+        this.#html.$label = this.querySelector(".pb-label");
+        this.#html.$closeBtn = this.querySelector(".pb-close");
 
         const fire = (type) =>
           this.dispatchEvent(new CustomEvent(type, { bubbles: true, detail: this.label }));

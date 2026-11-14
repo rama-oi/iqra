@@ -30,7 +30,7 @@ customElements.define(
 
       this.innerHTML = `
         ${initials ? `<span class="pb-initials">${escapeHtml(initials)}</span>` : ""}
-        ${src ? `<img class="avatar" alt="" src="${escapeHtml(src)}" />` : ""}
+        ${src ? `<img class="pb-avatar" alt="" src="${escapeHtml(src)}" />` : ""}
       `;
 
       this.querySelector("img")?.addEventListener("error", (e) => e.target.remove());

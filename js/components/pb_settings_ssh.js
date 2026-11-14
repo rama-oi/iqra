@@ -24,7 +24,7 @@ customElements.define(
     #identities = [];
 
     #template = `
-      <form class="add">
+      <form class="pb-add">
         <label>
           <span>Name</span>
           <input type="text" name="name" required />
@@ -32,20 +32,20 @@ customElements.define(
         <label>
           <span>Private key</span>
           <input type="file" name="key" required />
-          <div class="add-file pb-btn-2">Choose File</div>
+          <div class="pb-add-file pb-btn-2">Choose File</div>
         </label>
 
         <hr>
 
-        <button type="submit" class="add-ssh pb-btn">+ Add new SSH</button>
+        <button type="submit" class="pb-add-ssh pb-btn">+ Add new SSH</button>
       </form>
       <p class="pb-error" hidden></p>
 
       <hr>
 
-      <div class="user"></div>
+      <div class="pb-user"></div>
 
-      <ul class="users"></ul>
+      <ul class="pb-users"></ul>
     `;
 
     connectedCallback() {
@@ -55,9 +55,9 @@ customElements.define(
 
       const $ = (sel) => this.querySelector(sel);
       this.#html = {
-        $current: $(".user"),
-        $users: $(".users"),
-        $form: $("form.add"),
+        $current: $(".pb-user"),
+        $users: $(".pb-users"),
+        $form: $("form.pb-add"),
         $error: $(".pb-error"),
       };
 
@@ -71,9 +71,9 @@ customElements.define(
       const btn = e.target.closest("button");
       const id = btn?.closest("li[data-id]")?.dataset.id;
       if (!id) return;
-      if (btn.classList.contains("select")) {
+      if (btn.classList.contains("pb-select")) {
         this.#loadIdentities(selectIdentity(id));
-      } else if (btn.classList.contains("remove")) {
+      } else if (btn.classList.contains("pb-remove")) {
         this.#loadIdentities(removeIdentity(id));
       }
     }
@@ -109,22 +109,22 @@ customElements.define(
 
       this.#html.$current.innerHTML = active
         ? `<pb-avatar class="pb-medium" name="${escapeHtml(active.name)}" src="${escapeHtml(active.avatarUrl ?? "")}"></pb-avatar>
-           <span class="name">${escapeHtml(active.name)}</span>`
-        : `<span class="name">No identity selected</span>`;
+           <span class="pb-name">${escapeHtml(active.name)}</span>`
+        : `<span class="pb-name">No identity selected</span>`;
 
       this.#html.$users.innerHTML = this.#identities
         .map(
           (i) => `
           <li data-id="${escapeHtml(i.id)}"${i.isActive ? ' class="pb-active"' : ""}>
             <pb-avatar class="pb-small" name="${escapeHtml(i.name)}" src="${escapeHtml(i.avatarUrl ?? "")}"></pb-avatar>
-            <span class="name">${escapeHtml(i.name)}</span>
-            <span class="key">${escapeHtml(i.keyName)}</span>
+            <span class="pb-name">${escapeHtml(i.name)}</span>
+            <span class="pb-key">${escapeHtml(i.keyName)}</span>
             ${
               i.isActive
-                ? `<span class="badge">Active</span>`
-                : `<button type="button" class="select">Use</button>`
+                ? `<span class="pb-badge">Active</span>`
+                : `<button type="button" class="pb-select">Use</button>`
             }
-            <button type="button" class="remove pb-danger" aria-label="Remove ${escapeHtml(i.name)}">x</button>
+            <button type="button" class="pb-remove pb-danger" aria-label="Remove ${escapeHtml(i.name)}">x</button>
           </li>`,
         )
         .join("");

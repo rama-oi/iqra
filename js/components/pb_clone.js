@@ -27,7 +27,7 @@ customElements.define(
       <dialog>
         <header>
           <h2>Clone repository</h2>
-          <button type="button" class="close pb-danger" aria-label="Close">x</button>
+          <button type="button" class="pb-close pb-danger" aria-label="Close">x</button>
         </header>
         <form>
           <label>
@@ -64,7 +64,7 @@ customElements.define(
       document.addEventListener("pb-open-clone", () => this.open());
       $dialog.addEventListener("click", (e) => {
         if (this.#busy) return;
-        if (e.target === $dialog || e.target.closest(".close")) $dialog.close();
+        if (e.target === $dialog || e.target.closest(".pb-close")) $dialog.close();
       });
       // Esc must not abandon a clone that is already running
       $dialog.addEventListener("cancel", (e) => this.#busy && e.preventDefault());

@@ -18,10 +18,10 @@ customElements.define(
 
     #template = `
       <dialog data-tab="ssh">
-        <button type="button" class="close pb-danger" aria-label="Close">x</button>
+        <button type="button" class="pb-close pb-danger" aria-label="Close">x</button>
 
-        <aside class="sidebar">
-          <ul class="tabs">
+        <aside class="pb-sidebar">
+          <ul class="pb-tabs">
             <li>
               <button type="button" class="pb-nav-bar pb-active" data-tab="ssh">SSH</button>
             </li>
@@ -38,9 +38,9 @@ customElements.define(
           <h2>Settings</h2>
         </header>
 
-        <pb-settings-ssh class="body pb-settings-tab-ssh"></pb-settings-ssh>
-        <pb-settings-theme class="body pb-settings-tab-theme"></pb-settings-theme>
-        <pb-settings-about class="body pb-settings-tab-about"></pb-settings-about>
+        <pb-settings-ssh class="pb-body pb-settings-tab-ssh"></pb-settings-ssh>
+        <pb-settings-theme class="pb-body pb-settings-tab-theme"></pb-settings-theme>
+        <pb-settings-about class="pb-body pb-settings-tab-about"></pb-settings-about>
       </dialog>
     `;
 
@@ -75,7 +75,7 @@ customElements.define(
       const btn = e.target.closest("button");
       if (!btn) return;
 
-      if (btn.classList.contains("close")) return dialog.close();
+      if (btn.classList.contains("pb-close")) return dialog.close();
       if (btn.dataset.tab) this.#showTab(btn.dataset.tab);
     }
   },

@@ -1,4 +1,5 @@
 import { MOCK_COMMITS_RESPONSE } from "./mock-commits.js";
+import { mockCommitStaged } from "./changes.js";
 
 const USE_MOCK = true;
 
@@ -34,6 +35,7 @@ export async function fetchCommits({ repo, branch, limit = 200, cursor } = {}) {
 export async function createCommit({ repo, branch, message, amend = false }) {
   if (USE_MOCK) {
     await delay(300);
+    mockCommitStaged(repo);
     const head = mockStore.commits[0];
     const hash = randomHash();
     const base = {
