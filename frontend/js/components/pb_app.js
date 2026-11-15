@@ -1,9 +1,12 @@
 import { getPrefix } from "../lib/helpers.js";
-import { goBack } from "../api/data.js";
+import MOCK from "../api/config.js";
+import { goBack, syncTabs } from "../api/data.js";
+import { fetchProjects } from "../api/projects.js";
 
 import "./pb_avatar.js";
 import "./pb_collapse_btn.js";
 import "./pb_picker.js";
+import "./pb_file_picker.js";
 import "./pb_clone.js";
 
 import "./pb_tabbar.js";
@@ -34,6 +37,7 @@ customElements.define(
 
       <pb-settings></pb-settings>
       <pb-picker></pb-picker>
+      <pb-file-browser></pb-file-browser>
       <pb-clone></pb-clone>
     `;
 
@@ -41,6 +45,9 @@ customElements.define(
       if (this.#initialized) return;
       this.#initialized = true;
       this.innerHTML = this.#template;
+
+      // Tabs are remembered between visits: drop those the backend no longer has.
+      if (!MOCK.projects) fetchProjects().then(syncTabs).catch(() => {});
 
       // Escape steps back (diff, then commit preview), unless it already means
       // something else: closing a dialog or menu, or leaving a text field.

@@ -9,7 +9,8 @@
 // identity: { id, name, avatarUrl | null, keyName, isActive }
 // The private key is only ever sent to the backend, never kept in the browser.
 
-const USE_MOCK = true;
+import MOCK from "./config.js";
+const USE_MOCK = MOCK.identities;
 const BASE = "/api/identities";
 
 let mockStore = [

@@ -11,7 +11,8 @@
 //
 // file: { path, status: "A" | "M" | "D" }   (added, modified, deleted)
 
-const USE_MOCK = true;
+import MOCK from "./config.js";
+const USE_MOCK = MOCK.changes;
 
 const delay = (ms = 150) => new Promise((resolve) => setTimeout(resolve, ms));
 const file = (path, status) => ({ path, status });

@@ -1,11 +1,12 @@
 import { getPrefix } from "../lib/helpers.js";
 import { openLocalProject, folderName } from "../api/projects.js";
 import { openProject } from "../api/data.js";
+import "./pb_file_picker.js";
 
 const NAME_HINT = "taken from the folder";
 
 // Open > a git repository that is already in a folder (on the machine running the
-// backend). A browser cannot read a folder's path, so it is typed in.
+// backend), chosen with the folder picker or typed in.
 customElements.define(
   getPrefix("clone-open"),
   class extends HTMLElement {
@@ -17,9 +18,8 @@ customElements.define(
     #template = `
       <form>
         <label>
-          <span>Folder path</span>
-          <input type="text" name="path" required autocomplete="off" spellcheck="false"
-            placeholder="/home/me/projects/iqra" />
+          <span>Folder</span>
+          <pb-file-picker name="path" mode="folder" title="Open a repository" required></pb-file-picker>
         </label>
         <label>
           <span>Name</span>
@@ -38,6 +38,7 @@ customElements.define(
       const $ = (sel) => this.querySelector(sel);
       this.#html = {
         $form: $("form"),
+        $picker: $("pb-file-picker"),
         $path: $('input[name="path"]'),
         $name: $('input[name="name"]'),
         $submit: $('button[type="submit"]'),
@@ -65,9 +66,9 @@ customElements.define(
 
     #setBusy(busy) {
       this.#busy = busy;
-      const { $submit, $path, $name } = this.#html;
+      const { $submit, $picker, $name } = this.#html;
       $submit.disabled = busy;
-      $path.disabled = busy;
+      $picker.disabled = busy;
       $name.disabled = busy;
       $submit.textContent = busy ? "opening…" : "open";
       this.dispatchEvent(new CustomEvent("pb-clone-busy", { bubbles: true, detail: busy }));

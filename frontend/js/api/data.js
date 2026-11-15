@@ -1,3 +1,4 @@
+import MOCK from "./config.js";
 import AREAS from "../constants/areas.js";
 import { THEMES, ACCENTS } from "../constants/themes.js";
 import { load, save, upgrade, takeLegacy } from "../store/storage.js";
@@ -15,6 +16,7 @@ upgrade((from, { save }) => {
 });
 
 const isId = (list) => (id) => list.some((item) => item.id === id);
+const isTabs = (v) => Array.isArray(v) && v.every((t) => t && typeof t.name === "string");
 const isPanels = (v) => v && typeof v.left === "boolean" && typeof v.right === "boolean";
 
 // Shared app state. Change it through the functions below so the rest of the
@@ -22,12 +24,15 @@ const isPanels = (v) => v && typeof v.left === "boolean" && typeof v.right === "
 const data = {
   appName: "Iqra",
   // Open projects. The active one is `repository`; each tab remembers its branch.
-  tabs: [
-    { name: "fikret", branch: "v10" },
-    { name: "mako zero", branch: "main" },
-  ],
-  repository: "fikret", // null when no tab is open
-  branch: "v10",
+  // With the real backend they are remembered between visits (see syncTabs).
+  tabs: MOCK.projects
+    ? [
+        { name: "fikret", branch: "v10" },
+        { name: "mako zero", branch: "main" },
+      ]
+    : load("tabs", [], isTabs),
+  repository: null, // the active tab's project, null when no tab is open
+  branch: null,
   area: "workarea", // a key of AREAS
   commit: null, // the commit selected in the tree, or null
   file: null, // the file whose diff shows: { path, status, staged, commit }, or null
@@ -40,7 +45,18 @@ const data = {
   panels: load("panels", { left: false, right: false }, isPanels), // true = collapsed
 };
 
+// The active tab: the remembered one when it is still open, else the first.
+const first = MOCK.projects ? data.tabs[0] : data.tabs.find((t) => t.name === load("active", null)) ?? data.tabs[0];
+data.repository = first?.name ?? null;
+data.branch = first?.branch ?? null;
+
 export default data;
+
+function saveTabs() {
+  if (MOCK.projects) return;
+  save("tabs", data.tabs);
+  save("active", data.repository);
+}
 
 const emit = (type, detail) =>
   document.dispatchEvent(new CustomEvent(type, { detail }));
@@ -65,6 +81,7 @@ function activate(tab) {
   clearFile();
   emit("pb-commit-select", null);
   clearFilter();
+  saveTabs();
   emit("pb-repository-change", data.repository);
 }
 
@@ -82,9 +99,17 @@ export function openProject({ name, defaultBranch }) {
   if (!tab) {
     tab = { name, branch: defaultBranch };
     data.tabs.push(tab);
+    saveTabs();
     emit("pb-tabs-change");
   }
   if (name !== data.repository) activate(tab);
+}
+
+// Forget remembered tabs whose project the backend no longer knows (folder removed,
+// data folder reset). Call with the list from fetchProjects().
+export function syncTabs(projects) {
+  const known = new Set(projects.map((p) => p.name));
+  for (const tab of [...data.tabs]) if (!known.has(tab.name)) closeTab(tab.name);
 }
 
 export function selectTab(name) {
@@ -97,6 +122,7 @@ export function closeTab(name) {
   const index = data.tabs.findIndex((t) => t.name === name);
   if (index === -1) return;
   data.tabs.splice(index, 1);
+  saveTabs();
   emit("pb-tabs-change");
   if (name === data.repository) activate(data.tabs[index] ?? data.tabs[index - 1] ?? null);
 }
@@ -106,6 +132,7 @@ export function setBranch(branch) {
   data.branch = branch;
   const tab = data.tabs.find((t) => t.name === data.repository);
   if (tab) tab.branch = branch;
+  saveTabs();
   data.commit = null;
   clearFile();
   emit("pb-commit-select", null);

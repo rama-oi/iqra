@@ -1,7 +1,8 @@
 import { MOCK_COMMITS_RESPONSE } from "./mock-commits.js";
 import { mockCommitStaged } from "./changes.js";
 
-const USE_MOCK = true;
+import MOCK from "./config.js";
+const USE_MOCK = MOCK.commits;
 
 // The mock keeps its own history so commit/amend show up in the tree.
 const mockStore = structuredClone(MOCK_COMMITS_RESPONSE);

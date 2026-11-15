@@ -17,7 +17,6 @@ pb-app *::after {
 @font-face {
   font-family: "iqra";
   src:
-    url("../fonts/iqra.woff2") format("woff2"),
     url("../fonts/iqra.ttf") format("truetype"),
     url("../fonts/iqra.woff") format("woff");
   font-weight: normal;

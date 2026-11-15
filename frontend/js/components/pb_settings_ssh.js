@@ -6,6 +6,7 @@ import {
   removeIdentity,
 } from "../api/identities.js";
 import { setIdentity } from "../api/data.js";
+import "./pb_file_picker.js";
 
 // Settings > SSH: the identities (name + private key) used for git operations.
 // Loaded at startup, not when the dialog opens, so the corner avatar is right.
@@ -31,8 +32,7 @@ customElements.define(
         </label>
         <label>
           <span>Private key</span>
-          <input type="file" name="key" required />
-          <div class="pb-add-file pb-btn-2">Choose File</div>
+          <pb-file-picker name="key" mode="upload" required></pb-file-picker>
         </label>
 
         <hr>

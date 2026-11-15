@@ -4,13 +4,13 @@
 //   GET /api/projects                  -> { projects: [{ name, description, defaultBranch }] }
 //   GET /api/repos/:repo/branches      -> { branches: [{ name, isDefault }] }
 //   POST /api/projects { url, name }   -> { project: { name, description, defaultBranch } }
-//     clones the repository over SSH (http(s) URLs are refused); errors answer
-//     { error: "human readable text" }
+//     clones the repository over SSH (url is "git@host:owner/repo.git" or "ssh://...";
+//     the app never sends http(s), see lib/git_url.js); errors answer { error: "human readable text" }
 //   POST /api/projects/open { path, name } -> { project: { name, description, defaultBranch } }
-//     opens a git repository that already exists in a folder on the machine running
-//     the backend; errors answer { error: "human readable text" }
+//     opens a git repository that is already in a folder on the machine running the backend
 
-const USE_MOCK = true;
+import MOCK from "./config.js";
+const USE_MOCK = MOCK.projects;
 
 const MOCK_PROJECTS = [
   { name: "fikret", description: "Web Git client playground", defaultBranch: "v10" },
@@ -50,16 +50,20 @@ export async function fetchBranches(repo) {
   return (await res.json()).branches;
 }
 
-// SSH only: https is converted in the dialog (lib/git_url.js) before it gets here.
-const GIT_URL = /^(ssh:\/\/|git:\/\/|git@)\S+$/i;
+// SSH only: "ssh://host/path" or the scp-like "user@host:path".
+const SSH_URL = /^(ssh:\/\/\S+|[\w.-]+@[\w.-]+:\S+)$/i;
+const LOCAL_PATH = /^(\/|~[\/\\]|[a-z]:[\/\\]|\\\\)/i; // /abs, ~/home, C:\drive, \\share
 
-const HTTPS_REFUSED = "HTTPS is not supported, use the SSH URL (git@host:user/repo.git).";
+// "/home/me/projects/iqra/" and "C:\\code\\iqra" both give "iqra".
+export function folderName(path) {
+  return String(path ?? "").trim().replace(/[\/\\]+$/, "").split(/[\/\\]/).pop() ?? "";
+}
 
 export async function cloneProject({ url, name }) {
   if (USE_MOCK) {
     await new Promise((resolve) => setTimeout(resolve, 900)); // cloning takes a while
-    if (/^https?:\/\//i.test(url)) throw new Error(HTTPS_REFUSED);
-    if (!GIT_URL.test(url)) throw new Error("That does not look like a git URL.");
+    if (/^https?:\/\//i.test(url)) throw new Error("Only SSH URLs are supported, e.g. git@github.com:owner/repo.git.");
+    if (!SSH_URL.test(url)) throw new Error("That does not look like an SSH git URL.");
     if (MOCK_PROJECTS.some((p) => p.name === name)) {
       throw new Error(`A project named "${name}" already exists.`);
     }
@@ -81,19 +85,10 @@ export async function cloneProject({ url, name }) {
   return (await res.json()).project;
 }
 
-// An absolute path on the machine running the backend: /home/me/repo, ~/repo, C:\\repo
-const ABSOLUTE_PATH = /^(\/|~[\/\\]|[A-Za-z]:[\/\\])/;
-
-export function folderName(path) {
-  return String(path).trim().replace(/[\/\\]+$/, "").split(/[\/\\]/).pop() ?? "";
-}
-
 export async function openLocalProject({ path, name }) {
   if (USE_MOCK) {
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    if (!ABSOLUTE_PATH.test(path)) throw new Error("Enter the full path of the folder, e.g. /home/me/project.");
-    // the mock treats every folder as a repository, except one named like this
-    if (folderName(path) === "not-a-repo") throw new Error("That folder is not a git repository.");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    if (!LOCAL_PATH.test(path)) throw new Error("Enter the full path of the folder, e.g. /home/me/projects/iqra.");
     if (MOCK_PROJECTS.some((p) => p.name === name)) {
       throw new Error(`A project named "${name}" already exists.`);
     }

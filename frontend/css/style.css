@@ -165,9 +165,16 @@ pb-app {
             padding: var(--space-between-blocks);
             width: 100%;
             text-align: left;
+            border-inline-start: 3px solid transparent;
 
             .pb-icon {
               flex: none;
+            }
+
+            &.pb-active {
+              background-color: var(--surface-2);
+              color: var(--accent);
+              border-inline-start-color: var(--accent);
             }
           }
 
@@ -199,19 +206,6 @@ pb-app {
 
       span {
         display: block;
-      }
-    }
-
-    input[type="file"] {
-      height: 0;
-      display: none;
-      + .pb-btn-2 {
-        pointer-events: none;
-      }
-
-      &:hover + .pb-btn-2 {
-        background-color: color-mix(in srgb, var(--accent), black 10%);
-        color: var(--base);
       }
     }
 
@@ -552,15 +546,6 @@ pb-app {
       }
     }
 
-    /* the current branch gets the same left border as the active identity in settings */
-    pb-sidebar-left li button {
-      border-inline-start: 3px solid transparent;
-
-      &.pb-active {
-        border-inline-start-color: var(--accent);
-      }
-    }
-
     pb-collapse-btn {
       button {
         width: var(--collapse-btn-width);
@@ -644,12 +629,15 @@ pb-app {
     }
   }
 
-  /* --- tabbed dialogs: settings and clone/open ------------------------ */
-  :is(pb-settings, pb-clone) dialog {
+  /* --- settings dialog (the clone dialog shares this tabbed layout) -------- */
+  pb-settings dialog,
+  pb-clone dialog {
     padding: 0;
     border: 1px solid var(--border);
     background-color: var(--surface-0);
     color: var(--text);
+    width: min(720px, 92vw);
+    height: min(460px, 86vh);
 
     &::backdrop {
       background-color: rgb(0 0 0 / 0.55);
@@ -706,13 +694,6 @@ pb-app {
       padding: var(--space-between-blocks);
       overflow: auto;
     }
-  }
-
-  /* --- settings dialog ------------------------------------------------ */
-  pb-settings dialog {
-    width: min(720px, 92vw);
-    height: min(460px, 86vh);
-
     &[data-tab="ssh"] > .pb-settings-tab-ssh,
     &[data-tab="theme"] > .pb-settings-tab-theme,
     &[data-tab="about"] > .pb-settings-tab-about {
@@ -939,7 +920,8 @@ pb-app {
   }
 
   /* --- picker dialog -------------------------------------------------- */
-  pb-picker dialog {
+  pb-picker dialog,
+  pb-file-browser dialog {
     padding: 0;
     border: 1px solid var(--border);
     background-color: var(--surface-0);
@@ -1050,42 +1032,37 @@ pb-app {
     }
   }
 
-  /* --- clone dialog --------------------------------------------------- */
-  /* --- clone / open dialog (the tabbed look is shared, see above) ------ */
+  /* --- clone dialog: the settings layout, smaller, with its own tabs ----- */
   pb-clone dialog {
-    width: min(640px, 92vw);
+    width: min(620px, 92vw);
     height: min(400px, 86vh);
 
-    &[data-tab="clone"] > .pb-clone-tab-clone,
+    &[data-tab="url"] > .pb-clone-tab-url,
     &[data-tab="open"] > .pb-clone-tab-open {
       display: flex;
     }
 
-    .pb-error {
-      color: var(--danger);
+    form {
+      padding: var(--space-between-blocks);
+      gap: var(--space-between-blocks);
+
+      button[type="submit"] {
+        height: auto;
+      }
     }
 
-    form button[type="submit"] {
-      height: auto;
-    }
-
-    /* the SSH address an http(s) URL turns into, shown under the URL typed */
+    /* what an http(s) URL becomes: shown under the URL, never swapped silently */
     .pb-ssh-note {
       display: flex;
       flex-direction: column;
       gap: 2px;
-      padding-inline-start: var(--space-between-inline-items);
-      border-inline-start: 3px solid var(--success);
+      color: var(--overlay-0);
 
       &[hidden] {
         display: none;
       }
 
-      &.pb-error {
-        border-inline-start-color: var(--danger);
-      }
-
-      .pb-ssh-url {
+      code {
         color: var(--success);
         word-break: break-all;
       }
@@ -1211,6 +1188,79 @@ pb-app {
 
     .pb-diff-text {
       white-space: pre;
+    }
+  }
+  /* --- file picker: a field and a button, for files and for folders ------- */
+  pb-file-picker {
+    display: flex;
+    gap: var(--space-between-inline-items);
+
+    .pb-file-field {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .pb-btn-2 {
+      flex: none;
+      height: auto;
+    }
+
+    &[mode="upload"] .pb-file-field {
+      cursor: pointer;
+    }
+  }
+
+  /* --- folder browser dialog (shares the picker dialog's look) ------------ */
+  pb-file-browser dialog {
+    width: min(560px, 92vw);
+    height: min(520px, 86vh);
+
+    .pb-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-between-inline-items);
+      padding: var(--space-between-inline-items) var(--space-between-blocks);
+      border-block-end: 1px solid var(--border);
+
+      button {
+        height: auto;
+        padding: 0.4rem 0.6rem;
+      }
+
+      .pb-path {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        direction: rtl; /* a long path keeps its end, the folder you are in, visible */
+        text-align: left;
+        color: var(--overlay-0);
+      }
+    }
+
+    .pb-list {
+      flex: 1 1 auto;
+    }
+
+    .pb-badge {
+      color: var(--accent);
+      text-transform: uppercase;
+      font-size: 0.75rem;
+    }
+
+    > footer {
+      display: flex;
+      align-items: center;
+      gap: var(--space-between-inline-items);
+      padding: var(--space-between-inline-items) var(--space-between-blocks);
+      border-block-start: 1px solid var(--border);
+
+      label {
+        flex-direction: row;
+        align-items: center;
+        color: var(--overlay-0);
+      }
     }
   }
 }

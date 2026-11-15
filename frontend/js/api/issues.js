@@ -6,7 +6,8 @@
 // issue: { number, title, body, state: "open" | "closed", labels: [string],
 //          author, assignee | null, createdAt (ISO) }
 
-const USE_MOCK = true;
+import MOCK from "./config.js";
+const USE_MOCK = MOCK.issues;
 
 const issue = (number, title, state, labels, author, assignee, createdAt, body) => ({
   number, title, state, labels, author, assignee, createdAt, body,

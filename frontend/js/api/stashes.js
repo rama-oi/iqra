@@ -5,7 +5,8 @@
 //     -> { stashes: [{ id, message, branch, createdAt }] }
 //        id is the stash ref ("stash@{0}"), newest first; createdAt is ISO 8601.
 
-const USE_MOCK = true;
+import MOCK from "./config.js";
+const USE_MOCK = MOCK.stashes;
 
 const delay = (ms = 150) => new Promise((resolve) => setTimeout(resolve, ms));
 
