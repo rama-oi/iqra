@@ -85,7 +85,7 @@ customElements.define(
       this.querySelector(".pb-local .pb-content").innerHTML = this.#branches
         .map(
           (b) =>
-            `<li><button type="button" data-branch="${escapeHtml(b.name)}"${b.name === data.branch ? ' class="pb-active"' : ""}>${ICON_BRANCH}${escapeHtml(b.name)}</button></li>`,
+            `<li><button type="button" data-branch="${escapeHtml(b.name)}"${b.name === data.branch ? ' class="pb-active" aria-current="true"' : ""}>${ICON_BRANCH}${escapeHtml(b.name)}</button></li>`,
         )
         .join("");
 

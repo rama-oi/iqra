@@ -552,6 +552,15 @@ pb-app {
       }
     }
 
+    /* the current branch gets the same left border as the active identity in settings */
+    pb-sidebar-left li button {
+      border-inline-start: 3px solid transparent;
+
+      &.pb-active {
+        border-inline-start-color: var(--accent);
+      }
+    }
+
     pb-collapse-btn {
       button {
         width: var(--collapse-btn-width);
@@ -635,14 +644,12 @@ pb-app {
     }
   }
 
-  /* --- settings dialog ------------------------------------------------ */
-  pb-settings dialog {
+  /* --- tabbed dialogs: settings and clone/open ------------------------ */
+  :is(pb-settings, pb-clone) dialog {
     padding: 0;
     border: 1px solid var(--border);
     background-color: var(--surface-0);
     color: var(--text);
-    width: min(720px, 92vw);
-    height: min(460px, 86vh);
 
     &::backdrop {
       background-color: rgb(0 0 0 / 0.55);
@@ -699,6 +706,13 @@ pb-app {
       padding: var(--space-between-blocks);
       overflow: auto;
     }
+  }
+
+  /* --- settings dialog ------------------------------------------------ */
+  pb-settings dialog {
+    width: min(720px, 92vw);
+    height: min(460px, 86vh);
+
     &[data-tab="ssh"] > .pb-settings-tab-ssh,
     &[data-tab="theme"] > .pb-settings-tab-theme,
     &[data-tab="about"] > .pb-settings-tab-about {
@@ -1037,46 +1051,44 @@ pb-app {
   }
 
   /* --- clone dialog --------------------------------------------------- */
+  /* --- clone / open dialog (the tabbed look is shared, see above) ------ */
   pb-clone dialog {
-    padding: 0;
-    border: 1px solid var(--border);
-    background-color: var(--surface-0);
-    color: var(--text);
-    width: min(460px, 92vw);
+    width: min(640px, 92vw);
+    height: min(400px, 86vh);
 
-    &::backdrop {
-      background-color: rgb(0 0 0 / 0.55);
-    }
-
-    &[open] {
+    &[data-tab="clone"] > .pb-clone-tab-clone,
+    &[data-tab="open"] > .pb-clone-tab-open {
       display: flex;
-      flex-direction: column;
-    }
-
-    > header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding-inline-start: var(--space-between-blocks);
-      border-block-end: 1px solid var(--border);
-
-      .pb-close {
-        height: auto;
-        padding: 0.6rem 0.8rem;
-      }
-    }
-
-    form {
-      padding: var(--space-between-blocks);
-      gap: var(--space-between-blocks);
-
-      button[type="submit"] {
-        height: auto;
-      }
     }
 
     .pb-error {
       color: var(--danger);
+    }
+
+    form button[type="submit"] {
+      height: auto;
+    }
+
+    /* the SSH address an http(s) URL turns into, shown under the URL typed */
+    .pb-ssh-note {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding-inline-start: var(--space-between-inline-items);
+      border-inline-start: 3px solid var(--success);
+
+      &[hidden] {
+        display: none;
+      }
+
+      &.pb-error {
+        border-inline-start-color: var(--danger);
+      }
+
+      .pb-ssh-url {
+        color: var(--success);
+        word-break: break-all;
+      }
     }
   }
 

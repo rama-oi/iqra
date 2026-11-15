@@ -1,13 +1,14 @@
 import { getPrefix } from "../lib/helpers.js";
-import { cloneProject } from "../api/projects.js";
-import { openProject } from "../api/data.js";
+import "./pb_clone_url.js";
+import "./pb_clone_open.js";
 
-// "https://host/user/repo.git" and "git@host:user/repo.git" both give "repo".
-function deriveName(url) {
-  const cleaned = url.trim().replace(/[\/\\]+$/, "").replace(/\.git$/i, "");
-  return cleaned.split(/[\/:\\]/).pop() ?? "";
-}
+const TABS = ["clone", "open"];
 
+// The "add a repository" dialog: the shell with the tab navigation (same look as
+// the settings dialog). Each tab is its own component and a direct child of the
+// dialog. A tab tells the shell what it is doing with two bubbling events:
+//   pb-clone-busy  { detail: true | false }  work in progress: do not close or switch tab
+//   pb-clone-done                            a project was opened: close the dialog
 customElements.define(
   getPrefix("clone"),
   class extends HTMLElement {
@@ -16,34 +17,31 @@ customElements.define(
 
     #html = {
       $dialog: undefined,
-      $form: undefined,
-      $url: undefined,
-      $name: undefined,
-      $submit: undefined,
-      $error: undefined,
     };
 
     #template = `
-      <dialog>
+      <dialog data-tab="clone">
+        <button type="button" class="pb-close pb-danger" aria-label="Close">
+          <span class="pb-icon">❌</span>
+        </button>
+
+        <aside class="pb-sidebar">
+          <ul class="pb-tabs">
+            <li>
+              <button type="button" class="pb-nav-bar pb-active" data-tab="clone">Clone</button>
+            </li>
+            <li>
+              <button type="button" class="pb-nav-bar" data-tab="open">Open</button>
+            </li>
+          </ul>
+        </aside>
+
         <header>
-          <h2>Clone repository</h2>
-          <button type="button" class="pb-close pb-danger" aria-label="Close">
-            <span class="pb-icon">❌</span>
-          </button>
+          <h2>Open repository</h2>
         </header>
-        <form>
-          <label>
-            <span>Repository URL</span>
-            <input type="text" name="url" required autocomplete="off" spellcheck="false"
-              placeholder="https://github.com/user/repo.git" autofocus />
-          </label>
-          <label>
-            <span>Name</span>
-            <input type="text" name="name" autocomplete="off" spellcheck="false" />
-          </label>
-          <p class="pb-error" role="alert" hidden></p>
-          <button type="submit" class="pb-btn">clone</button>
-        </form>
+
+        <pb-clone-url class="pb-body pb-clone-tab-clone"></pb-clone-url>
+        <pb-clone-open class="pb-body pb-clone-tab-open"></pb-clone-open>
       </dialog>
     `;
 
@@ -52,75 +50,42 @@ customElements.define(
       this.#initialized = true;
       this.innerHTML = this.#template;
 
-      const $ = (sel) => this.querySelector(sel);
-      this.#html = {
-        $dialog: $("dialog"),
-        $form: $("form"),
-        $url: $('input[name="url"]'),
-        $name: $('input[name="name"]'),
-        $submit: $('button[type="submit"]'),
-        $error: $(".pb-error"),
-      };
-      const { $dialog, $form, $url, $name } = this.#html;
+      const $dialog = (this.#html.$dialog = this.querySelector("dialog"));
 
       document.addEventListener("pb-open-clone", () => this.open());
-      $dialog.addEventListener("click", (e) => {
-        if (this.#busy) return;
-        if (e.target === $dialog || e.target.closest(".pb-close")) $dialog.close();
-      });
+      $dialog.addEventListener("click", (e) => this.#onClick(e));
       // Esc must not abandon a clone that is already running
       $dialog.addEventListener("cancel", (e) => this.#busy && e.preventDefault());
-      $form.addEventListener("submit", (e) => this.#onSubmit(e));
-      $url.addEventListener("input", () => {
-        $name.placeholder = deriveName($url.value) || "taken from the URL";
-      });
-      $name.placeholder = "taken from the URL";
+      this.addEventListener("pb-clone-busy", (e) => (this.#busy = e.detail));
+      this.addEventListener("pb-clone-done", () => $dialog.close());
     }
 
-    open() {
-      const { $dialog, $form, $name } = this.#html;
+    open(tab = "clone") {
+      const $dialog = this.#html.$dialog;
       if ($dialog.open) return;
-      $form.reset();
-      $name.placeholder = "taken from the URL";
-      this.#setError("");
+      for (const $tab of this.querySelectorAll("pb-clone-url, pb-clone-open")) $tab.reset();
+      this.#showTab(tab);
       $dialog.showModal();
     }
 
-    #setError(text) {
-      const { $error } = this.#html;
-      $error.textContent = text;
-      $error.hidden = !text;
-    }
-
-    #setBusy(busy) {
-      this.#busy = busy;
-      const { $submit, $url, $name } = this.#html;
-      $submit.disabled = busy;
-      $url.disabled = busy;
-      $name.disabled = busy;
-      $submit.textContent = busy ? "cloning…" : "clone";
-    }
-
-    async #onSubmit(e) {
-      e.preventDefault();
-      if (this.#busy) return;
-      const url = this.#html.$url.value.trim();
-      const name = this.#html.$name.value.trim() || deriveName(url);
-      if (!url) return;
-      if (!name) return this.#setError("Could not work out a name, please enter one.");
-
-      this.#setError("");
-      this.#setBusy(true);
-      try {
-        const project = await cloneProject({ url, name });
-        this.#setBusy(false);
-        this.#html.$dialog.close();
-        openProject(project);
-      } catch (err) {
-        console.error(err);
-        this.#setBusy(false);
-        this.#setError(err.message || "Something went wrong, try again.");
+    #showTab(tab) {
+      if (!TABS.includes(tab)) return;
+      this.#html.$dialog.dataset.tab = tab;
+      for (const btn of this.querySelectorAll(".pb-nav-bar")) {
+        btn.classList.toggle("pb-active", btn.dataset.tab === tab);
       }
+      this.querySelector(`.pb-clone-tab-${tab} input`)?.focus();
+    }
+
+    #onClick(e) {
+      if (this.#busy) return;
+      const $dialog = this.#html.$dialog;
+      if (e.target === $dialog) return $dialog.close();
+
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      if (btn.classList.contains("pb-close")) return $dialog.close();
+      if (btn.dataset.tab) this.#showTab(btn.dataset.tab);
     }
   },
 );
