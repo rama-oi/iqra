@@ -20,8 +20,8 @@ function pathOut(from, to) {
   return `M${x(from)} ${MID}H${x(to) - s * CORNER}Q${x(to)} ${MID} ${x(to)} ${MID + CORNER}V${ROW_H + BLEED}`;
 }
 
-const laneGroup = (color, d) =>
-  `<g class="pb-lane-${color}"><path d="${d}"/></g>`;
+const laneGroup = (color, d, dashed = false) =>
+  `<g class="pb-lane-${color}${dashed ? " pb-dashed" : ""}"><path d="${d}"/></g>`;
 
 export function renderGraphRow(row, laneCount) {
   const { lane, color, isMerge, hasRefs } = row;
@@ -30,10 +30,10 @@ export function renderGraphRow(row, laneCount) {
   const parts = [];
 
   for (const l of row.through)
-    parts.push(laneGroup(l.color, `M${x(l.lane)} ${-BLEED}V${ROW_H + BLEED}`));
-  for (const l of row.ins) parts.push(laneGroup(l.color, pathIn(l.lane, lane)));
+    parts.push(laneGroup(l.color, `M${x(l.lane)} ${-BLEED}V${ROW_H + BLEED}`, l.dashed));
+  for (const l of row.ins) parts.push(laneGroup(l.color, pathIn(l.lane, lane), l.dashed));
   for (const l of row.outs)
-    parts.push(laneGroup(l.color, pathOut(lane, l.lane)));
+    parts.push(laneGroup(l.color, pathOut(lane, l.lane), l.dashed));
 
   if (hasRefs) parts.push(laneGroup(color, `M${-BLEED} ${MID}H${cx}`));
 

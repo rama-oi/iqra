@@ -1,4 +1,4 @@
-import { getPrefix } from "../lib/helpers.js";
+import { getPrefix, icon } from "../lib/helpers.js";
 
 customElements.define(
   getPrefix("tab-add"),
@@ -11,7 +11,7 @@ customElements.define(
 
     #template = `
       <button class="pb-add pb-success" type="button" aria-label="Clone repository" title="Clone repository">
-        <span class="pb-icon">+</span>
+        ${icon("plus")}
       </button>
     `;
 

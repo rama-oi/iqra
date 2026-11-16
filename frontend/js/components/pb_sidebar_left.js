@@ -1,11 +1,10 @@
-import { getPrefix, escapeHtml } from "../lib/helpers.js";
+import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
 import data, { setBranch } from "../api/data.js";
 import { fetchBranches } from "../api/projects.js";
 import { fetchStashes } from "../api/stashes.js";
 
-// Decorative pixel icons (the iqra font maps these emoji to its own glyphs).
-const ICON_BRANCH = `<span class="pb-icon" aria-hidden="true">🌱</span>`;
-const ICON_ARCHIVE = `<span class="pb-icon" aria-hidden="true">🗃</span>`;
+const ICON_BRANCH = icon("branch");
+const ICON_ARCHIVE = icon("archive");
 
 customElements.define(
   getPrefix("sidebar-left"),
@@ -26,7 +25,7 @@ customElements.define(
         <details class="pb-remote" open>
           <summary>Remote</summary>
           <ul class="pb-content">
-            <li><button type="button">${ICON_BRANCH}v10</button></li>
+            <li class="pb-empty">No remote branches yet.</li>
           </ul>
         </details>
 
@@ -38,7 +37,7 @@ customElements.define(
         <details class="pb-submodules" open>
           <summary>Sub Modules</summary>
           <ul class="pb-content">
-            <li><button type="button">${ICON_ARCHIVE}v10</button></li>
+            <li class="pb-empty">No submodules.</li>
           </ul>
         </details>
       </div>

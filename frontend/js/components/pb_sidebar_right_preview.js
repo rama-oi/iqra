@@ -1,4 +1,4 @@
-import { getPrefix, escapeHtml } from "../lib/helpers.js";
+import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
 import data, { setCommit, setFile, isSelectedFile } from "../api/data.js";
 
 // First line is the subject, whatever follows the first blank line is the body.
@@ -26,7 +26,7 @@ customElements.define(
         <div class="pb-preview-bar">
           <p class="pb-hash"></p>
           <button type="button" class="pb-close pb-danger" aria-label="Close preview" title="Close (Esc)">
-            <span class="pb-icon">❌</span>
+            ${icon("times")}
           </button>
         </div>
 

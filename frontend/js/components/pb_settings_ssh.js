@@ -1,4 +1,4 @@
-import { getPrefix, escapeHtml } from "../lib/helpers.js";
+import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
 import {
   fetchIdentities,
   addIdentity,
@@ -125,7 +125,7 @@ customElements.define(
                 : `<button type="button" class="pb-select">Use</button>`
             }
             <button type="button" class="pb-remove pb-danger" aria-label="Remove ${escapeHtml(i.name)}">
-              <span class="pb-icon">❌</span>
+              ${icon("times")}
             </button>
           </li>`,
         )

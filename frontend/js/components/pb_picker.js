@@ -1,4 +1,4 @@
-import { getPrefix, escapeHtml } from "../lib/helpers.js";
+import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
 
 // A modal "pick one from a list" dialog with a filter box.
 //
@@ -38,7 +38,7 @@ customElements.define(
         <header>
           <h2></h2>
           <button type="button" class="pb-close pb-danger" aria-label="Close">
-            <span class="pb-icon">❌</span>
+            ${icon("times")}
           </button>
         </header>
         <input type="search" class="pb-filter" placeholder="Filter…" autofocus />

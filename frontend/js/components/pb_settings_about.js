@@ -8,6 +8,7 @@ customElements.define(
     #initialized = false;
 
     #template = `
+      <img class="pb-logo" src="./img/iqra_outline.svg" alt="" width="96" height="96" />
       <h2>${escapeHtml(APP.name)} v${escapeHtml(APP.version)}</h2>
       <p>${escapeHtml(APP.description)}</p>
       <ul class="pb-claims">

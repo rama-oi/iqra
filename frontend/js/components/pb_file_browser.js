@@ -1,13 +1,6 @@
-import { getPrefix, escapeHtml } from "../lib/helpers.js";
+import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
 import { fetchFolders } from "../api/fs.js";
 
-// A modal "choose a folder" dialog that browses the machine running the backend.
-//
-//   const path = await browseFolder({ title: "Open a repository", start: "/home/me" });
-//   // path is the chosen folder, or null when dismissed.
-//
-// Clicking a folder goes into it; "Choose this folder" picks the one being shown.
-// Folders that are git repositories carry a badge.
 export function browseFolder(options) {
   const browser = document.querySelector(getPrefix("file-browser"));
   if (!browser) throw new Error("<pb-file-browser> is missing from the page");
@@ -31,12 +24,10 @@ customElements.define(
         <header>
           <h2></h2>
           <button type="button" class="pb-close pb-danger" aria-label="Close">
-            <span class="pb-icon">❌</span>
+            ${icon("times")}
           </button>
         </header>
         <div class="pb-bar">
-          <button type="button" class="pb-up" aria-label="Parent folder" title="Parent folder"><span class="pb-icon">⬆</span></button>
-          <button type="button" class="pb-home" aria-label="Home folder" title="Home folder"><span class="pb-icon">🏠</span></button>
           <code class="pb-path"></code>
         </div>
         <p class="pb-status" hidden></p>
@@ -58,8 +49,6 @@ customElements.define(
       this.#html = {
         $dialog: $("dialog"),
         $title: $("h2"),
-        $up: $(".pb-up"),
-        $home: $(".pb-home"),
         $path: $(".pb-path"),
         $status: $(".pb-status"),
         $list: $(".pb-list"),
@@ -119,26 +108,35 @@ customElements.define(
     }
 
     #render() {
-      const { $path, $list, $up, $home, $choose } = this.#html;
+      const { $path, $list, $choose } = this.#html;
       const l = this.#listing;
       // <bdo dir="ltr"> keeps the slashes in place inside the right-to-left box, which
       // is only there so a long path scrolls to show its end.
       $path.innerHTML = l ? `<bdo dir="ltr">${escapeHtml(l.path)}</bdo>` : "";
       $path.title = l?.path ?? "";
-      $up.disabled = !l?.parent;
-      $home.disabled = !l?.home;
       $choose.disabled = !l;
-      $list.innerHTML = (l?.folders ?? [])
-        .map(
-          (f) => `
+      // ".." goes to the parent folder, as in a terminal listing.
+      const parent = l?.parent
+        ? `
+          <li>
+            <button type="button" class="pb-item pb-parent" data-path="${escapeHtml(l.parent)}" title="Parent folder">
+              <span class="pb-label">${icon("folder-open")} ..</span>
+            </button>
+          </li>`
+        : "";
+      $list.innerHTML =
+        parent +
+        (l?.folders ?? [])
+          .map(
+            (f) => `
           <li>
             <button type="button" class="pb-item" data-path="${escapeHtml(f.path)}">
-              <span class="pb-label"><span class="pb-icon">📁</span> ${escapeHtml(f.name)}</span>
+              <span class="pb-label">${icon("folder-open")} ${escapeHtml(f.name)}</span>
               ${f.isRepo ? `<span class="pb-badge">git</span>` : ""}
             </button>
           </li>`,
-        )
-        .join("");
+          )
+          .join("");
       $list.scrollTop = 0;
     }
 
@@ -150,13 +148,11 @@ customElements.define(
     }
 
     #onClick(e) {
-      const { $dialog, $up, $home, $choose } = this.#html;
+      const { $dialog, $choose } = this.#html;
       if (e.target === $dialog) return $dialog.close();
       const btn = e.target.closest("button");
       if (!btn) return;
       if (btn.classList.contains("pb-close")) return $dialog.close();
-      if (btn === $up) return this.#go(this.#listing?.parent);
-      if (btn === $home) return this.#go(this.#listing?.home);
       if (btn === $choose) return this.#choose();
       if (btn.dataset.path) this.#go(btn.dataset.path);
     }

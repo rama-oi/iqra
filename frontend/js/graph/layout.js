@@ -1,8 +1,11 @@
 export const PALETTE_SIZE = 8;
 
+// `commits` is newest first. A commit with `isWorking` is the working tree drawn as a
+// commit on top of HEAD: the line leaving it is flagged `dashed` until it reaches HEAD.
 export function layoutGraph(commits) {
   const lanes = [];
   const colors = [];
+  const dashed = []; // per lane: the line waiting there belongs to the working tree
   let cycle = 0;
   let laneCount = 1;
 
@@ -30,11 +33,14 @@ export function layoutGraph(commits) {
     const through = [];
     lanes.forEach((hash, i) => {
       if (hash !== null && !incoming.includes(i))
-        through.push({ lane: i, color: colors[i] });
+        through.push({ lane: i, color: colors[i], dashed: !!dashed[i] });
     });
-    const ins = incoming.map((i) => ({ lane: i, color: colors[i] }));
+    const ins = incoming.map((i) => ({ lane: i, color: colors[i], dashed: !!dashed[i] }));
 
-    for (const i of incoming) lanes[i] = null;
+    for (const i of incoming) {
+      lanes[i] = null;
+      dashed[i] = false;
+    }
 
     const outs = [];
     const reserved = new Set([...incoming, lane]);
@@ -42,7 +48,8 @@ export function layoutGraph(commits) {
       if (k === 0) {
         lanes[lane] = parent;
         colors[lane] = nodeColor;
-        outs.push({ lane, color: nodeColor });
+        dashed[lane] = !!commit.isWorking;
+        outs.push({ lane, color: nodeColor, dashed: !!commit.isWorking });
         return;
       }
       let target = lanes.indexOf(parent);
@@ -52,7 +59,7 @@ export function layoutGraph(commits) {
         lanes[target] = parent;
         colors[target] = pickColor();
       }
-      outs.push({ lane: target, color: colors[target] });
+      outs.push({ lane: target, color: colors[target], dashed: false });
     });
 
     for (const i of incoming) if (lanes[i] === null) colors[i] = undefined;

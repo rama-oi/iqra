@@ -1,4 +1,4 @@
-import { getPrefix } from "../lib/helpers.js";
+import { getPrefix, icon } from "../lib/helpers.js";
 import "./pb_settings_ssh.js";
 import "./pb_settings_theme.js";
 import "./pb_settings_about.js";
@@ -19,7 +19,7 @@ customElements.define(
     #template = `
       <dialog data-tab="ssh">
         <button type="button" class="pb-close pb-danger" aria-label="Close">
-          <span class="pb-icon">❌</span>
+          ${icon("times")}
         </button>
 
         <aside class="pb-sidebar">

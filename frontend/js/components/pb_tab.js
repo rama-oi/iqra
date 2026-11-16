@@ -1,4 +1,4 @@
-import { getPrefix } from "../lib/helpers.js";
+import { getPrefix, icon } from "../lib/helpers.js";
 
 // A project tab. It only reports what the user did (both events bubble);
 // pb-tabbar decides what that means.
@@ -17,7 +17,7 @@ customElements.define(
     #template = `
       <button class="pb-label" type="button"></button>
       <button class="pb-close pb-danger" type="button" aria-label="Close tab" title="Close tab">
-        <span class="pb-icon">❌</span>
+        ${icon("times")}
       </button>
     `;
 

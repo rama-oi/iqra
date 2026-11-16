@@ -1,4 +1,4 @@
-import { getPrefix } from "../lib/helpers.js";
+import { getPrefix, icon } from "../lib/helpers.js";
 import "./pb_view_switcher.js";
 
 customElements.define(
@@ -12,28 +12,28 @@ customElements.define(
     #template = `
       <pb-view-switcher></pb-view-switcher>
       <button type="button" class="pb-restore">
-        <span class="pb-icon">⬅</span>
+        ${icon("arrow-left")}
       </button>
       <button type="button" class="pb-redo">
-        <span class="pb-icon">➡</span>
+        ${icon("arrow-right")}
       </button>
       <button type="button" class="pb-pull">
-        <span class="pb-icon">🔽</span>
+        ${icon("download-alt")}
       </button>
       <button type="button" class="pb-push">
-        <span class="pb-icon">🔼</span>
+        ${icon("upload-alt")}
       </button>
       <button type="button" class="pb-branch">
-        <span class="pb-icon">🌱</span>
+        ${icon("branch")}
       </button>
       <button type="button" class="pb-stash">
-        <span class="pb-icon">⬇</span>
+        ${icon("arrow-down")}
       </button>
       <button type="button" class="pb-pop">
-        <span class="pb-icon">⬆</span>
+        ${icon("arrow-up")}
       </button>
       <button type="button" class="pb-terminal">
-        <span class="pb-icon">🖥</span>
+        ${icon("code")}
       </button>
       
     `;

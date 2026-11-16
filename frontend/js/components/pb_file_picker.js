@@ -1,21 +1,6 @@
 import { getPrefix, escapeHtml } from "../lib/helpers.js";
 import { browseFolder } from "./pb_file_browser.js";
 
-// One look for "choose something" fields, with two modes:
-//
-//   <pb-file-picker name="key" mode="upload" required></pb-file-picker>
-//     A file from this computer (read by the browser and sent to the backend),
-//     e.g. an SSH private key. `.file` / `.files` give it.
-//
-//   <pb-file-picker name="path" mode="folder" title="Open a repository"></pb-file-picker>
-//     A folder on the machine running the backend. The browser cannot read a
-//     folder's path, so "Browse…" opens <pb-file-browser>. The path can also be
-//     typed or pasted. `.value` gives it.
-//
-// Attributes: name, mode (upload | folder, default upload), placeholder, accept
-// (upload), title (folder dialog), required. It sits in forms like an input:
-// `form.elements.<name>` is the real input, form.reset() clears it, and a bubbling
-// `pb-file-pick` event ({ detail: { value, file } }) says when something was chosen.
 customElements.define(
   getPrefix("file-picker"),
   class extends HTMLElement {
@@ -98,7 +83,7 @@ customElements.define(
       if (this.mode === "upload") return $file.click();
 
       const path = await browseFolder({
-        title: this.getAttribute("title") ?? "Choose a folder",
+        title: this.getAttribute("dialog-title") ?? "Choose a folder",
         start: $field.value.trim(),
       });
       if (path === null) return;

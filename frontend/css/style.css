@@ -231,7 +231,7 @@ pb-app {
 
     .pb-icon {
       font-size: 0.7rem;
-      color: var(--accent);
+      /* color: var(--accent); */
     }
   }
 
@@ -407,6 +407,27 @@ pb-app {
       fill: var(--c);
       stroke: var(--base);
       stroke-width: 2;
+    }
+
+    /* The working tree: a dashed line down to HEAD, ending in a hollow node. */
+    .pb-graph .pb-dashed path {
+      stroke-dasharray: 3 3;
+    }
+    .pb-node-working {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border: 2px dashed var(--c);
+      border-radius: 50%;
+      background-color: var(--base);
+    }
+    .pb-row.pb-working .pb-column-message {
+      gap: var(--space-between-inline-items);
+      font-style: italic;
+
+      .pb-count {
+        color: var(--overlay-0);
+      }
     }
 
     pb-avatar.pb-node {
@@ -771,6 +792,12 @@ pb-app {
 
     .pb-claims {
       list-style: disc inside;
+    }
+
+    /* Pixel art: scale in whole steps without smoothing it. */
+    .pb-logo {
+      display: block;
+      image-rendering: pixelated;
     }
 
     .pb-error {

@@ -19,7 +19,7 @@ customElements.define(
       <form>
         <label>
           <span>Folder</span>
-          <pb-file-picker name="path" mode="folder" title="Open a repository" required></pb-file-picker>
+          <pb-file-picker name="path" mode="folder" dialog-title="Open a repository" required></pb-file-picker>
         </label>
         <label>
           <span>Name</span>

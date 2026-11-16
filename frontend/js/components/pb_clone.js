@@ -1,4 +1,4 @@
-import { getPrefix } from "../lib/helpers.js";
+import { getPrefix, icon } from "../lib/helpers.js";
 import "./pb_clone_url.js";
 import "./pb_clone_open.js";
 
@@ -17,7 +17,7 @@ customElements.define(
     #template = `
       <dialog data-tab="url">
         <button type="button" class="pb-close pb-danger" aria-label="Close">
-          <span class="pb-icon">❌</span>
+          ${icon("times")}
         </button>
 
         <aside class="pb-sidebar">
