@@ -24,14 +24,16 @@ customElements.define(
 
         this.innerHTML = this.#template;
 
-        // A selected commit shows its preview, otherwise the commit form.
+        // A selected commit shows its preview, otherwise the commit form; with no project
+        // open there is nothing to show.
         const $preview = this.querySelector("pb-sidebar-right-preview");
         const $commit = this.querySelector("pb-sidebar-right-commit");
         const sync = () => {
-          $preview.classList.toggle("pb-hidden-section", !data.commit);
-          $commit.classList.toggle("pb-hidden-section", !!data.commit);
+          $preview.classList.toggle("pb-hidden-section", !data.repository || !data.commit);
+          $commit.classList.toggle("pb-hidden-section", !data.repository || !!data.commit);
         };
         document.addEventListener("pb-commit-select", sync);
+        document.addEventListener("pb-repository-change", sync);
         sync();
       }
     }

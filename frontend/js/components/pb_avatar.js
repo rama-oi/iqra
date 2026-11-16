@@ -28,12 +28,21 @@ customElements.define(
 
       if (name) this.title = name;
 
-      this.innerHTML = `
-        ${initials ? `<span class="pb-initials">${escapeHtml(initials)}</span>` : ""}
-        ${src ? `<img class="pb-avatar" alt="" src="${escapeHtml(src)}" />` : ""}
-      `;
+      // The initials stand in only while there is no picture: no src, a src still
+      // loading, or one that fails to load (offline, deleted, blocked).
+      const initialsHtml = initials ? `<span class="pb-initials">${escapeHtml(initials)}</span>` : "";
+      this.innerHTML = initialsHtml;
+      if (!src) return;
 
-      this.querySelector("img")?.addEventListener("error", (e) => e.target.remove());
+      const $img = new Image();
+      $img.className = "pb-avatar";
+      $img.alt = "";
+      // a later attribute change may have replaced this image already
+      const current = () => this.getAttribute("src") === src;
+      $img.addEventListener("load", () => {
+        if (current()) this.replaceChildren($img);
+      });
+      $img.src = src;
     }
   },
 );

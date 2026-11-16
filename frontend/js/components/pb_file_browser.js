@@ -1,6 +1,13 @@
 import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
 import { fetchFolders } from "../api/fs.js";
 
+// A modal "choose a folder" dialog that browses the machine running the backend.
+//
+//   const path = await browseFolder({ title: "Open a repository", start: "/home/me" });
+//   // path is the chosen folder, or null when dismissed.
+//
+// Clicking a folder goes into it; "Choose this folder" picks the one being shown.
+// Folders that are git repositories carry a badge.
 export function browseFolder(options) {
   const browser = document.querySelector(getPrefix("file-browser"));
   if (!browser) throw new Error("<pb-file-browser> is missing from the page");

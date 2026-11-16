@@ -1,6 +1,6 @@
 import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
 import data, { setBranch } from "../api/data.js";
-import { fetchBranches } from "../api/projects.js";
+import { fetchBranches, fetchRemoteBranches } from "../api/projects.js";
 import { fetchStashes } from "../api/stashes.js";
 
 const ICON_BRANCH = icon("branch");
@@ -13,6 +13,7 @@ customElements.define(
     #loadId = 0;
     #branches = [];
     #stashes = [];
+    #remotes = [];
     #repository = data.repository;
 
     #template = `
@@ -59,20 +60,27 @@ customElements.define(
         for (const type of ["pb-repository-change", "pb-branch-change"]) {
           document.addEventListener(type, () => this.#render());
         }
+        // pull, stash, pop and commit move branches, remotes and stashes
+        document.addEventListener("pb-history-change", () => this.#load());
         this.#load();
       }
     }
 
-    // Branches and stashes only change with the project, so fetch once per project.
+    // Fetched with the project and again after an action that changes them.
     async #load() {
       const loadId = ++this.#loadId;
       const repo = data.repository;
-      const [branches, stashes] = repo
-        ? await Promise.all([fetchBranches(repo).catch(() => []), fetchStashes(repo).catch(() => [])])
-        : [[], []];
+      const [branches, stashes, remotes] = repo
+        ? await Promise.all([
+            fetchBranches(repo).catch(() => []),
+            fetchStashes(repo).catch(() => []),
+            fetchRemoteBranches(repo).catch(() => []),
+          ])
+        : [[], [], []];
       if (loadId !== this.#loadId) return;
       this.#branches = branches;
       this.#stashes = stashes;
+      this.#remotes = remotes;
       this.#render();
     }
 
@@ -87,6 +95,10 @@ customElements.define(
             `<li><button type="button" data-branch="${escapeHtml(b.name)}"${b.name === data.branch ? ' class="pb-active" aria-current="true"' : ""}>${ICON_BRANCH}${escapeHtml(b.name)}</button></li>`,
         )
         .join("");
+
+      this.querySelector(".pb-remote .pb-content").innerHTML = this.#remotes.length
+        ? this.#remotes.map((b) => `<li class="pb-ref" title="${escapeHtml(b.name)}">${ICON_BRANCH}${escapeHtml(b.name)}</li>`).join("")
+        : `<li class="pb-empty">No remote branches.</li>`;
 
       this.querySelector(".pb-stashes .pb-content").innerHTML = this.#stashes.length
         ? this.#stashes

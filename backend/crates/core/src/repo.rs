@@ -141,6 +141,19 @@ impl Repo {
             .collect())
     }
 
+    /// Remote-tracking branches ("origin/main"), as last fetched.
+    pub fn remote_branches(&self) -> Result<Vec<String>> {
+        let mut names: Vec<String> = self
+            .inner
+            .branches(Some(BranchType::Remote))?
+            .filter_map(|b| b.ok())
+            .filter_map(|(b, _)| b.name().ok().flatten().map(String::from))
+            .filter(|n| !n.ends_with("/HEAD"))
+            .collect();
+        names.sort();
+        Ok(names)
+    }
+
     /// Every branch, remote branch and tag, keyed by the commit it points at.
     fn ref_labels(&self) -> Result<HashMap<Oid, Vec<RefLabel>>> {
         let head = self.head_branch();

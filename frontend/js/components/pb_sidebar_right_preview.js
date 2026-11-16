@@ -1,5 +1,6 @@
 import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
-import data, { setCommit, setFile, isSelectedFile } from "../api/data.js";
+import data, { setBranch, setCommit, setFile, isSelectedFile } from "../api/data.js";
+import { checkout } from "../api/commits.js";
 
 // First line is the subject, whatever follows the first blank line is the body.
 function splitMessage(message) {
@@ -25,6 +26,9 @@ customElements.define(
       <div class="pb-wrapper">
         <div class="pb-preview-bar">
           <p class="pb-hash"></p>
+          <button type="button" class="pb-checkout" aria-label="Check out this commit" title="Check out this commit">
+            ${icon("branch")}
+          </button>
           <button type="button" class="pb-close pb-danger" aria-label="Close preview" title="Close (Esc)">
             ${icon("times")}
           </button>
@@ -42,6 +46,7 @@ customElements.define(
         <textarea rows="6" class="pb-body"></textarea>
 
         <button class="pb-commit-btn pb-btn" type="button">update message</button>
+        <p class="pb-error" role="alert" hidden></p>
       </div>
 
       <details class="pb-files" open>
@@ -58,6 +63,8 @@ customElements.define(
       const $ = (sel) => this.querySelector(sel);
       this.#html = {
         $hash: $(".pb-hash"),
+        $checkout: $(".pb-checkout"),
+        $error: $(".pb-error"),
         $avatar: $("pb-avatar"),
         $name: $(".pb-name"),
         $time: $("time"),
@@ -67,6 +74,7 @@ customElements.define(
       };
 
       this.querySelector(".pb-close").addEventListener("click", () => setCommit(null));
+      this.#html.$checkout.addEventListener("click", () => this.#checkout());
       document.addEventListener("pb-commit-select", () => this.#render());
       document.addEventListener("pb-file-select", () => this.#markSelected());
 
@@ -87,6 +95,14 @@ customElements.define(
       const h = this.#html;
 
       h.$hash.textContent = commit.hash;
+      h.$error.hidden = true;
+      const { branch } = this.#checkoutTarget(commit);
+      h.$checkout.disabled = commit.refs.some((r) => r.isHead);
+      h.$checkout.title = h.$checkout.disabled
+        ? "Already checked out"
+        : branch
+          ? `Check out ${branch}`
+          : "Check out this commit (detached HEAD)";
       h.$avatar.setAttribute("name", commit.author.name);
       h.$avatar.setAttribute("src", commit.author.avatarUrl ?? "");
       h.$name.textContent = commit.author.name;
@@ -110,6 +126,35 @@ customElements.define(
             .join("")
         : `<li class="pb-empty">No file information.</li>`;
       this.#markSelected();
+    }
+
+    // A local branch pointing here is checked out by name, so new commits land on it;
+    // otherwise HEAD is detached at the commit.
+    #checkoutTarget(commit) {
+      const branch = commit.refs.find((r) => r.type === "branch" && !r.isHead)?.name;
+      return branch ? { branch } : { commit: commit.hash };
+    }
+
+    async #checkout() {
+      const commit = data.commit;
+      if (!commit || !data.repository) return;
+      const { $checkout, $error } = this.#html;
+      const target = this.#checkoutTarget(commit);
+      $checkout.disabled = true;
+      try {
+        await checkout({ repo: data.repository, ...target });
+        $error.hidden = true;
+      } catch (err) {
+        console.error(err);
+        $error.textContent = err.message || "Something went wrong, try again.";
+        $error.hidden = false;
+        $checkout.disabled = false;
+        return;
+      }
+      // Back to the working changes, now on top of the new HEAD.
+      if (target.branch) setBranch(target.branch);
+      setCommit(null);
+      document.dispatchEvent(new CustomEvent("pb-history-change"));
     }
 
     #markSelected() {

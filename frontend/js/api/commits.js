@@ -27,6 +27,29 @@ export async function fetchCommits({ repo, branch, limit = 200, cursor } = {}) {
   return res.json();
 }
 
+// Move HEAD to a local branch (`branch`) or detach it at a commit (`commit`, a hash).
+// Git refuses when uncommitted changes would be lost; the error says which files.
+//
+// Backend contract:
+//   POST /api/repos/:repo/checkout  { branch } or { commit } -> { currentBranch | null }
+export async function checkout({ repo, branch, commit }) {
+  if (USE_MOCK) {
+    await delay(200);
+    for (const c of mockStore.commits) {
+      for (const r of c.refs) if (r.type === "branch") r.isHead = r.name === branch && !commit;
+    }
+    return { currentBranch: branch ?? null };
+  }
+  const res = await fetch(`/api/repos/${encodeURIComponent(repo)}/checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(branch ? { branch } : { commit }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `Checkout failed (${res.status})`);
+  return body;
+}
+
 // Commit the staged files, or with `amend` fold them into the latest commit.
 // `message` may be empty only when amending: the previous message is kept.
 //

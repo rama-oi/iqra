@@ -25,7 +25,15 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/projects/open", post(open_project))
         .route("/fs", get(browse))
         .route("/repos/{repo}/branches", get(branches))
+        .route("/repos/{repo}/remote-branches", get(remote_branches))
+        .route("/repos/{repo}/stage", post(stage))
+        .route("/repos/{repo}/unstage", post(unstage))
+        .route("/repos/{repo}/push", post(push))
+        .route("/repos/{repo}/pull", post(pull))
+        .route("/repos/{repo}/stashes/push", post(stash_push))
+        .route("/repos/{repo}/stashes/pop", post(stash_pop))
         .route("/repos/{repo}/commits", get(commits).post(commit))
+        .route("/repos/{repo}/checkout", post(checkout))
         .route("/repos/{repo}/status", get(status))
         .route("/repos/{repo}/diff", get(diff))
         .route("/repos/{repo}/stashes", get(stashes))
@@ -245,4 +253,102 @@ async fn browse(ApiQuery(q): ApiQuery<BrowseQuery>) -> Reply {
     };
     let listing = blocking(move || iqra_core::list_folders(&path, hidden)).await?;
     Ok(Json(serde_json::to_value(listing).map_err(iqra_core::Error::from)?))
+}
+
+#[derive(Deserialize)]
+struct CheckoutBody {
+    /// A local branch to switch to...
+    #[serde(default)]
+    branch: Option<String>,
+    /// ...or a commit hash, which detaches HEAD there. Exactly one of the two.
+    #[serde(default)]
+    commit: Option<String>,
+}
+
+async fn checkout(State(state): Shared, Path(repo): Path<String>, ApiJson(body): ApiJson<CheckoutBody>) -> Reply {
+    let current = blocking(move || {
+        let r = open_repo_blocking(&state, &repo)?;
+        match (body.branch.as_deref(), body.commit.as_deref()) {
+            (Some(branch), None) => iqra_core::checkout(r.path(), branch, false)?,
+            (None, Some(commit)) => iqra_core::checkout(r.path(), commit, true)?,
+            _ => return Err(iqra_core::Error::Invalid("Say either a branch or a commit.".into())),
+        }
+        Ok(open_repo_blocking(&state, &repo)?.head_branch())
+    })
+    .await?;
+    Ok(Json(json!({ "currentBranch": current })))
+}
+
+async fn remote_branches(State(state): Shared, Path(repo): Path<String>) -> Reply {
+    let names = blocking(move || open_repo_blocking(&state, &repo)?.remote_branches()).await?;
+    let branches: Vec<Value> = names.into_iter().map(|name| json!({ "name": name })).collect();
+    Ok(Json(json!({ "branches": branches })))
+}
+
+#[derive(Deserialize)]
+struct PathsBody {
+    #[serde(default)]
+    paths: Vec<String>,
+}
+
+async fn stage(State(state): Shared, Path(repo): Path<String>, ApiJson(body): ApiJson<PathsBody>) -> Reply {
+    blocking(move || iqra_core::stage(open_repo_blocking(&state, &repo)?.path(), &body.paths)).await?;
+    Ok(Json(json!({})))
+}
+
+async fn unstage(State(state): Shared, Path(repo): Path<String>, ApiJson(body): ApiJson<PathsBody>) -> Reply {
+    blocking(move || iqra_core::unstage(open_repo_blocking(&state, &repo)?.path(), &body.paths)).await?;
+    Ok(Json(json!({})))
+}
+
+/// Push and pull act on the checked-out branch: with a detached HEAD there is none.
+fn on_a_branch(r: &Repo) -> iqra_core::Result<()> {
+    if r.head_branch().is_none() {
+        return Err(iqra_core::Error::Conflict("Check out a branch first: HEAD is detached.".into()));
+    }
+    Ok(())
+}
+
+async fn push(State(state): Shared, Path(repo): Path<String>) -> Reply {
+    blocking(move || {
+        let r = open_repo_blocking(&state, &repo)?;
+        on_a_branch(&r)?;
+        iqra_core::push(r.path())
+    })
+    .await?;
+    Ok(Json(json!({})))
+}
+
+async fn pull(State(state): Shared, Path(repo): Path<String>) -> Reply {
+    blocking(move || {
+        let r = open_repo_blocking(&state, &repo)?;
+        on_a_branch(&r)?;
+        iqra_core::pull(r.path())
+    })
+    .await?;
+    Ok(Json(json!({})))
+}
+
+#[derive(Deserialize)]
+struct StashBody {
+    #[serde(default)]
+    message: String,
+}
+
+async fn stash_push(State(state): Shared, Path(repo): Path<String>, ApiJson(body): ApiJson<StashBody>) -> Reply {
+    blocking(move || {
+        let r = open_repo_blocking(&state, &repo)?;
+        let status = r.status()?;
+        if status.staged.is_empty() && status.unstaged.is_empty() {
+            return Err(iqra_core::Error::Conflict("There are no changes to stash.".into()));
+        }
+        iqra_core::stash_push(r.path(), &body.message)
+    })
+    .await?;
+    Ok(Json(json!({})))
+}
+
+async fn stash_pop(State(state): Shared, Path(repo): Path<String>) -> Reply {
+    blocking(move || iqra_core::stash_pop(open_repo_blocking(&state, &repo)?.path())).await?;
+    Ok(Json(json!({})))
 }

@@ -17,10 +17,31 @@ const MOCK_STASHES = {
   ],
 };
 
+// The sample stashes keep the files they took, so popping gives them back.
+const mockStashes = structuredClone(MOCK_STASHES);
+
+export function mockPushStash(repo, { files, branch, message }) {
+  const list = (mockStashes[repo] ??= []);
+  list.unshift({
+    message: message.trim() || `WIP on ${branch ?? "HEAD"}`,
+    branch: branch ?? "HEAD",
+    createdAt: new Date().toISOString(),
+    files,
+  });
+  list.forEach((s, i) => (s.id = `stash@{${i}}`));
+}
+
+export function mockPopStash(repo) {
+  const list = mockStashes[repo] ?? [];
+  const stash = list.shift();
+  list.forEach((s, i) => (s.id = `stash@{${i}}`));
+  return stash && { ...stash, files: stash.files ?? [] };
+}
+
 export async function fetchStashes(repo) {
   if (USE_MOCK) {
     await delay();
-    return structuredClone(MOCK_STASHES[repo] ?? []);
+    return structuredClone(mockStashes[repo] ?? []).map(({ files, ...s }) => s);
   }
   const res = await fetch(`/api/repos/${encodeURIComponent(repo)}/stashes`);
   if (!res.ok) throw new Error(`Failed to load stashes (${res.status})`);

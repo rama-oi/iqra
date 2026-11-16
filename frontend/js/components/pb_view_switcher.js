@@ -73,6 +73,9 @@ customElements.define(
       $repository.textContent = data.repository ?? "No project";
       $branch.textContent = data.branch ?? "-";
       $branch.disabled = !data.repository;
+      // no project, no branch: only "Work Area / No project" is left
+      this.toggleAttribute("data-empty", !data.repository);
+      $search.disabled = !data.repository;
 
       if ($search.value !== data.filter) $search.value = data.filter;
 

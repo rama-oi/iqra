@@ -2,7 +2,7 @@
 //
 // Backend contract:
 //   GET /api/projects                  -> { projects: [{ name, description, defaultBranch }] }
-//   GET /api/repos/:repo/branches      -> { branches: [{ name, isDefault }] }
+//   GET /api/repos/:repo/branches      -> { branches: [{ name, isDefault }] }   (local ones)
 //   POST /api/projects { url, name }   -> { project: { name, description, defaultBranch } }
 //     clones the repository over SSH (url is "git@host:owner/repo.git" or "ssh://...";
 //     the app never sends http(s), see lib/git_url.js); errors answer { error: "human readable text" }
@@ -47,6 +47,23 @@ export async function fetchBranches(repo) {
   }
   const res = await fetch(`/api/repos/${encodeURIComponent(repo)}/branches`);
   if (!res.ok) throw new Error(`Failed to load branches (${res.status})`);
+  return (await res.json()).branches;
+}
+
+// Remote-tracking branches ("origin/main"), as last fetched.
+//   GET /api/repos/:repo/remote-branches -> { branches: [{ name }] }
+const MOCK_REMOTE_BRANCHES = {
+  fikret: ["origin/main", "origin/v10", "origin/feature/theme"],
+  "mako zero": ["origin/main"],
+};
+
+export async function fetchRemoteBranches(repo) {
+  if (USE_MOCK) {
+    await delay();
+    return (MOCK_REMOTE_BRANCHES[repo] ?? []).map((name) => ({ name }));
+  }
+  const res = await fetch(`/api/repos/${encodeURIComponent(repo)}/remote-branches`);
+  if (!res.ok) throw new Error(`Failed to load remote branches (${res.status})`);
   return (await res.json()).branches;
 }
 

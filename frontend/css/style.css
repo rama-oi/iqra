@@ -182,6 +182,17 @@ pb-app {
             padding: var(--space-between-blocks);
             color: var(--overlay-0);
           }
+
+          &.pb-ref {
+            display: flex;
+            align-items: center;
+            gap: var(--space-between-inline-items);
+            padding: var(--space-between-blocks);
+            border-inline-start: 3px solid transparent;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
         }
       }
     }
@@ -231,7 +242,7 @@ pb-app {
 
     .pb-icon {
       font-size: 0.7rem;
-      /* color: var(--accent); */
+      color: var(--accent);
     }
   }
 
@@ -304,6 +315,31 @@ pb-app {
   }
   .pb-lane-7 {
     --c: var(--graph-7);
+  }
+
+  .pb-toasts {
+    position: fixed;
+    inset-block-end: var(--space-between-blocks);
+    inset-inline: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-between-inline-items);
+    pointer-events: none;
+    z-index: 10;
+  }
+  .pb-toast {
+    padding: var(--space-between-inline-items) var(--space-between-blocks);
+    background-color: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    max-width: min(560px, 92vw);
+    white-space: pre-line; /* keep git's own line breaks */
+
+    &.pb-error {
+      color: var(--danger);
+      border-color: var(--danger);
+    }
   }
 
   .pb-close,
@@ -528,6 +564,15 @@ pb-app {
             content: "/";
           }
         }
+
+        /* with no project there is no branch to show, nor anything to search */
+        &[data-empty] {
+          .pb-branch,
+          .pb-search,
+          span.pb-arrow-path:nth-of-type(n + 2) {
+            display: none;
+          }
+        }
       }
 
       .pb-search {
@@ -620,9 +665,14 @@ pb-app {
             min-width: 0;
           }
 
-          .pb-close {
+          .pb-close,
+          .pb-checkout {
             flex: none;
           }
+        }
+
+        .pb-error {
+          color: var(--danger);
         }
 
         .pb-user {
@@ -1041,6 +1091,32 @@ pb-app {
 
   /* --- commit panel --------------------------------------------------- */
   pb-sidebar-right-commit {
+    /* a file and its stage/unstage button side by side */
+    .pb-file-row {
+      display: flex;
+      align-items: stretch;
+
+      .pb-file {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+    }
+    .pb-file-action {
+      flex: none;
+      width: auto;
+      height: auto;
+      padding: 0 var(--space-between-blocks);
+
+      .pb-icon {
+        font-size: 0.7rem;
+      }
+
+      &.pb-all {
+        float: right;
+        padding-block: 0.1rem;
+      }
+    }
+
     .pb-actions {
       display: flex;
       gap: var(--space-between-inline-items);

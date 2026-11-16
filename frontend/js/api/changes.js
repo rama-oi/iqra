@@ -40,6 +40,32 @@ export function mockCommitStaged(repo) {
   if (mockStatus[repo]) mockStatus[repo].staged = [];
 }
 
+const entry = (repo) => (mockStatus[repo] ??= { staged: [], unstaged: [] });
+
+// Move files between the two lists, as `git add` and `git reset` do.
+function mockMove(repo, paths, from, to) {
+  const s = entry(repo);
+  const moving = s[from].filter((f) => paths.includes(f.path));
+  s[from] = s[from].filter((f) => !paths.includes(f.path));
+  s[to] = [...s[to], ...moving].sort((a, b) => a.path.localeCompare(b.path));
+}
+export const mockStage = (repo, paths) => mockMove(repo, paths, "unstaged", "staged");
+export const mockUnstage = (repo, paths) => mockMove(repo, paths, "staged", "unstaged");
+
+// A stash takes every change; popping it puts them back as unstaged changes.
+export function mockTakeChanges(repo) {
+  const s = entry(repo);
+  const all = [...s.staged, ...s.unstaged];
+  s.staged = [];
+  s.unstaged = [];
+  return all;
+}
+export function mockGiveChanges(repo, files) {
+  const s = entry(repo);
+  const have = new Set(s.unstaged.map((f) => f.path));
+  s.unstaged = [...s.unstaged, ...files.filter((f) => !have.has(f.path))].sort((a, b) => a.path.localeCompare(b.path));
+}
+
 const MOCK_PATCHES = {
   "js/api/data.js": `diff --git a/js/api/data.js b/js/api/data.js
 --- a/js/api/data.js
