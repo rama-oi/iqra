@@ -17,16 +17,12 @@ customElements.define(
 
     #template = `
       <details class="pb-unstaged" open>
-        <summary>Unstaged Files <span class="pb-count"></span>
-          <button type="button" class="pb-file-action pb-all" data-action="move" data-group="unstaged" title="Stage all" aria-label="Stage all files">${icon("plus")}</button>
-        </summary>
+        <summary>Unstaged Files <span class="pb-count"></span></summary>
         <ul class="pb-content"></ul>
       </details>
 
       <details class="pb-staged" open>
-        <summary>Staged Files <span class="pb-count"></span>
-          <button type="button" class="pb-file-action pb-all" data-action="move" data-group="staged" title="Unstage all" aria-label="Unstage all files">${icon("minus")}</button>
-        </summary>
+        <summary>Staged Files <span class="pb-count"></span></summary>
         <ul class="pb-content"></ul>
       </details>
 
@@ -64,7 +60,6 @@ customElements.define(
       this.addEventListener("click", (e) => {
         const action = e.target.closest("button[data-action]");
         if (action) {
-          e.preventDefault(); // the "all" buttons sit inside a <summary>
           return this.#move(action);
         }
         const btn = e.target.closest("button.pb-file[data-group]");
@@ -82,15 +77,14 @@ customElements.define(
       this.#load();
     }
 
-    // Stage or unstage one file (its button) or a whole group (the "all" button).
+    // Stage or unstage one file: the button next to it.
     async #move(btn) {
       if (!data.repository) return;
       const group = btn.dataset.group;
-      const files = this.#files[group];
-      const paths = btn.dataset.index === undefined ? files.map((f) => f.path) : [files[btn.dataset.index]?.path];
-      if (!paths.length || paths[0] === undefined) return;
+      const path = this.#files[group][btn.dataset.index]?.path;
+      if (path === undefined) return;
       try {
-        await (group === "staged" ? unstage : stage)({ repo: data.repository, paths });
+        await (group === "staged" ? unstage : stage)({ repo: data.repository, paths: [path] });
       } catch (err) {
         console.error(err);
         toast(err.message || "Something went wrong, try again.", { error: true });
@@ -131,7 +125,6 @@ customElements.define(
       const files = this.#files[group];
       const $details = this.querySelector(`.pb-${group}`);
       $details.querySelector(".pb-count").textContent = files.length ? `(${files.length})` : "";
-      $details.querySelector(".pb-all").hidden = !files.length;
       $details.querySelector(".pb-content").innerHTML = files.length
         ? files
             .map(
@@ -186,7 +179,7 @@ customElements.define(
       try {
         const commit = await createCommit({
           repo: data.repository,
-          branch: data.branch,
+          branch: data.detached ? undefined : data.branch,
           message,
           amend,
         });

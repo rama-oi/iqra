@@ -2,7 +2,9 @@
 //
 // Backend contract:
 //   GET /api/projects                  -> { projects: [{ name, description, defaultBranch }] }
-//   GET /api/repos/:repo/branches      -> { branches: [{ name, isDefault }] }   (local ones)
+//   GET /api/repos/:repo/branches      -> { branches: [{ name, isDefault, isDetached }] }   (local ones)
+//     isDefault marks the one HEAD is on; with a detached HEAD the first entry is named
+//     after the commit (short hash) and has isDetached, and no real branch is isDefault
 //   POST /api/projects { url, name }   -> { project: { name, description, defaultBranch } }
 //     clones the repository over SSH (url is "git@host:owner/repo.git" or "ssh://...";
 //     the app never sends http(s), see lib/git_url.js); errors answer { error: "human readable text" }
@@ -38,12 +40,26 @@ export async function fetchProjects() {
   return (await res.json()).projects;
 }
 
+// The sample repositories whose HEAD is detached: project -> short hash. Set by the
+// sample checkout (see api/commits.js).
+const mockDetached = {};
+export function mockSetDetached(repo, hash) {
+  if (hash) mockDetached[repo] = hash.slice(0, 7);
+  else delete mockDetached[repo];
+}
+
 export async function fetchBranches(repo) {
   if (USE_MOCK) {
     await delay();
     const project = MOCK_PROJECTS.find((p) => p.name === repo);
     const names = MOCK_BRANCHES[repo] ?? [project?.defaultBranch ?? "main"];
-    return names.map((name) => ({ name, isDefault: name === project?.defaultBranch }));
+    const detached = mockDetached[repo];
+    const list = names.map((name) => ({
+      name,
+      isDefault: !detached && name === project?.defaultBranch,
+      isDetached: false,
+    }));
+    return detached ? [{ name: detached, isDefault: true, isDetached: true }, ...list] : list;
   }
   const res = await fetch(`/api/repos/${encodeURIComponent(repo)}/branches`);
   if (!res.ok) throw new Error(`Failed to load branches (${res.status})`);

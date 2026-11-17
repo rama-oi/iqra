@@ -317,3 +317,20 @@ fn committing_uses_the_git_binary_and_can_amend() {
     commit(root, "Better message", true).unwrap();
     assert_eq!(open(&f).head_commit().unwrap().message, "Better message");
 }
+
+#[test]
+fn a_detached_head_leads_the_branches_and_is_labelled_in_the_graph() {
+    let f = fixture();
+    f.git.set_head_detached(f.c1).unwrap();
+    let repo = open(&f);
+
+    let branches = repo.branches().unwrap();
+    assert_eq!(branches[0].name, f.c1.to_string()[..7]);
+    assert!(branches[0].is_detached && branches[0].is_default);
+    assert!(branches[1..].iter().all(|b| !b.is_default && !b.is_detached));
+
+    let page = repo.commits(10, None).unwrap();
+    assert_eq!(page.current_branch, None);
+    let c1 = page.commits.iter().find(|c| c.hash == f.c1.to_string()).unwrap();
+    assert!(c1.refs.iter().any(|r| r.kind == RefKind::Head && r.is_head));
+}

@@ -3,7 +3,7 @@ import { fetchCommits } from "../api/commits.js";
 import { fetchStatus } from "../api/changes.js";
 import { layoutGraph } from "../graph/layout.js";
 import { renderGraphRow, avatarStyle, LANE_W } from "../graph/render-row.js";
-import data, { setCommit } from "../api/data.js";
+import data, { setCommit, refreshCommit } from "../api/data.js";
 import { matches } from "../lib/filter.js";
 
 // The working tree is the first row, drawn as a commit on top of HEAD. Selecting it shows
@@ -71,6 +71,13 @@ customElements.define(
         this.#changes = status ? status.staged.length + status.unstaged.length : null;
         const { rows, laneCount } = layoutGraph([working, ...commits]);
         this.#commits = new Map(commits.map((c) => [c.hash, c]));
+
+        // The selected commit may be gone (history rewritten elsewhere) or relabelled.
+        if (data.commit) {
+          const fresh = this.#commits.get(data.commit.hash);
+          if (fresh) refreshCommit(fresh);
+          else setCommit(null);
+        }
 
         this.style.setProperty("--column-graph-width", `${laneCount * LANE_W}px`);
         body.innerHTML = rows.map((row) => this.#renderRow(row, laneCount)).join("");

@@ -153,6 +153,7 @@ customElements.define(
       }
       // Back to the working changes, now on top of the new HEAD.
       if (target.branch) setBranch(target.branch);
+      else setBranch(commit.shortHash ?? commit.hash.slice(0, 7), { detached: true });
       setCommit(null);
       document.dispatchEvent(new CustomEvent("pb-history-change"));
     }

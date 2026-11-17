@@ -1,5 +1,6 @@
 import { MOCK_COMMITS_RESPONSE } from "./mock-commits.js";
 import { mockCommitStaged } from "./changes.js";
+import { mockSetDetached } from "./projects.js";
 
 import MOCK from "./config.js";
 const USE_MOCK = MOCK.commits;
@@ -36,8 +37,11 @@ export async function checkout({ repo, branch, commit }) {
   if (USE_MOCK) {
     await delay(200);
     for (const c of mockStore.commits) {
+      c.refs = c.refs.filter((r) => r.type !== "head");
       for (const r of c.refs) if (r.type === "branch") r.isHead = r.name === branch && !commit;
+      if (c.hash === commit) c.refs.push({ name: "HEAD", type: "head", isHead: true });
     }
+    mockSetDetached(repo, commit ?? null);
     return { currentBranch: branch ?? null };
   }
   const res = await fetch(`/api/repos/${encodeURIComponent(repo)}/checkout`, {

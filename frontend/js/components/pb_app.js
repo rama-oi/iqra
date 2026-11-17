@@ -1,7 +1,7 @@
 import { getPrefix } from "../lib/helpers.js";
 import MOCK from "../api/config.js";
-import { goBack, syncTabs } from "../api/data.js";
-import { fetchProjects } from "../api/projects.js";
+import { goBack } from "../api/data.js";
+import { refreshApp } from "../api/refresh.js";
 
 import "./pb_avatar.js";
 import "./pb_collapse_btn.js";
@@ -46,8 +46,16 @@ customElements.define(
       this.#initialized = true;
       this.innerHTML = this.#template;
 
-      // Tabs are remembered between visits: drop those the backend no longer has.
-      if (!MOCK.projects) fetchProjects().then(syncTabs).catch(() => {});
+      // Tabs are remembered between visits: drop those the backend no longer has, and
+      // check the branch we remembered still is where HEAD is.
+      if (!MOCK.projects) refreshApp({ force: true });
+
+      // Coming back to the app (another window, another client may have changed the
+      // repositories meanwhile): reload everything.
+      window.addEventListener("focus", () => refreshApp());
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") refreshApp();
+      });
 
       // Escape steps back (diff, then commit preview), unless it already means
       // something else: closing a dialog or menu, or leaving a text field.

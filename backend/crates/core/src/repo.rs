@@ -64,6 +64,7 @@ fn rank(kind: RefKind) -> u8 {
         RefKind::Branch => 0,
         RefKind::Remote => 1,
         RefKind::Tag => 2,
+        RefKind::Head => 0,
     }
 }
 
@@ -112,6 +113,15 @@ impl Repo {
         head.symbolic_target().ok()??.strip_prefix("refs/heads/").map(String::from)
     }
 
+    /// The commit HEAD is detached on, None when it is on a branch (or the repository
+    /// is empty).
+    fn detached_head(&self) -> Option<Oid> {
+        if self.head_branch().is_some() {
+            return None;
+        }
+        self.inner.head().ok()?.target()
+    }
+
     pub fn project(&self) -> Project {
         Project {
             name: self.name.clone(),
@@ -135,10 +145,15 @@ impl Repo {
                 names.push(h.clone());
             }
         names.sort_by_key(|n| (Some(n) != head.as_ref(), n.clone()));
-        Ok(names
+        let mut branches: Vec<Branch> = names
             .into_iter()
-            .map(|name| Branch { is_default: Some(&name) == head.as_ref(), name })
-            .collect())
+            .map(|name| Branch { is_default: Some(&name) == head.as_ref(), is_detached: false, name })
+            .collect();
+        // a detached HEAD is the current "branch", so it leads the list
+        if let Some(oid) = self.detached_head() {
+            branches.insert(0, Branch { name: oid.to_string()[..7].to_string(), is_default: true, is_detached: true });
+        }
+        Ok(branches)
     }
 
     /// Remote-tracking branches ("origin/main"), as last fetched.
@@ -179,6 +194,9 @@ impl Repo {
             map.entry(commit.id())
                 .or_default()
                 .push(RefLabel { name: short.to_string(), kind, is_head });
+        }
+        if let Some(oid) = self.detached_head() {
+            map.entry(oid).or_default().push(RefLabel { name: "HEAD".into(), kind: RefKind::Head, is_head: true });
         }
         for labels in map.values_mut() {
             labels.sort_by(|a, b| (rank(a.kind), !a.is_head, &a.name).cmp(&(rank(b.kind), !b.is_head, &b.name)));

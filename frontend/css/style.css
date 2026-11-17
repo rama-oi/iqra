@@ -1110,11 +1110,6 @@ pb-app {
       .pb-icon {
         font-size: 0.7rem;
       }
-
-      &.pb-all {
-        float: right;
-        padding-block: 0.1rem;
-      }
     }
 
     .pb-actions {

@@ -32,7 +32,8 @@ const data = {
       ]
     : load("tabs", [], isTabs),
   repository: null, // the active tab's project, null when no tab is open
-  branch: null,
+  branch: null, // the current branch, or the short hash of the commit when `detached`
+  detached: false, // HEAD is on a commit, not on a branch
   area: "workarea", // a key of AREAS
   commit: null, // the commit selected in the tree, or null
   file: null, // the file whose diff shows: { path, status, staged, commit }, or null
@@ -49,6 +50,7 @@ const data = {
 const first = MOCK.projects ? data.tabs[0] : data.tabs.find((t) => t.name === load("active", null)) ?? data.tabs[0];
 data.repository = first?.name ?? null;
 data.branch = first?.branch ?? null;
+data.detached = !!first?.detached;
 
 export default data;
 
@@ -77,6 +79,7 @@ function clearFilter() {
 function activate(tab) {
   data.repository = tab?.name ?? null;
   data.branch = tab?.branch ?? null;
+  data.detached = !!tab?.detached;
   data.commit = null;
   clearFile();
   emit("pb-commit-select", null);
@@ -127,11 +130,17 @@ export function closeTab(name) {
   if (name === data.repository) activate(data.tabs[index] ?? data.tabs[index - 1] ?? null);
 }
 
-export function setBranch(branch) {
-  if (!branch || !data.repository || branch === data.branch) return;
+// A detached HEAD is shown as a branch named after the commit: pass its short hash
+// and { detached: true }.
+export function setBranch(branch, { detached = false } = {}) {
+  if (!branch || !data.repository || (branch === data.branch && detached === data.detached)) return;
   data.branch = branch;
+  data.detached = detached;
   const tab = data.tabs.find((t) => t.name === data.repository);
-  if (tab) tab.branch = branch;
+  if (tab) {
+    tab.branch = branch;
+    tab.detached = detached;
+  }
   saveTabs();
   data.commit = null;
   clearFile();
@@ -144,6 +153,13 @@ export function setCommit(commit) {
   if ((commit?.hash ?? null) === (data.commit?.hash ?? null)) return;
   data.commit = commit;
   clearFile();
+  emit("pb-commit-select", commit);
+}
+
+// The selected commit, as freshly loaded (its labels may have moved).
+export function refreshCommit(commit) {
+  if (!commit || commit.hash !== data.commit?.hash) return;
+  data.commit = commit;
   emit("pb-commit-select", commit);
 }
 

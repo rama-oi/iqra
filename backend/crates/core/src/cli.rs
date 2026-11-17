@@ -33,8 +33,17 @@ fn run(mut cmd: Command) -> Result<()> {
     if out.status.success() {
         return Ok(());
     }
-    let text = failure_text(&out.stdout, &out.stderr);
-    Err(Error::Git(if text.is_empty() { "git failed without saying why.".into() } else { text }))
+    let mut text = failure_text(&out.stdout, &out.stderr);
+    if text.is_empty() {
+        text = "git failed without saying why.".into();
+    } else if text.to_ascii_lowercase().contains("bad owner or permissions") {
+        // ssh refuses its own config or key files when they are not the service user's
+        text.push_str(
+            "\nssh does not trust that file: it must belong to the user running Iqra, and only that user \
+             may write it (chmod 600 for keys and ~/.ssh/config, chmod 700 for ~/.ssh).",
+        );
+    }
+    Err(Error::Git(text))
 }
 
 /// ssh must never ask a question (host key, passphrase) with nobody to answer, or

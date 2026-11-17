@@ -12,7 +12,7 @@ const ACTIONS = {
   stash: {
     label: "Stash changes",
     done: "Changes stashed.",
-    run: (repo) => stashChanges({ repo, branch: data.branch }),
+    run: (repo) => stashChanges({ repo, branch: data.detached ? null : data.branch }),
   },
   pop: { label: "Pop the latest stash", done: "Stash applied.", run: (repo) => popStash({ repo }) },
 };

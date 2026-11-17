@@ -72,6 +72,7 @@ customElements.define(
       $area.textContent = AREAS.get(data.area);
       $repository.textContent = data.repository ?? "No project";
       $branch.textContent = data.branch ?? "-";
+      $branch.title = data.detached ? "Detached HEAD: on this commit, not on a branch" : "Switch branch";
       $branch.disabled = !data.repository;
       // no project, no branch: only "Work Area / No project" is left
       this.toggleAttribute("data-empty", !data.repository);
@@ -106,18 +107,21 @@ customElements.define(
 
     async #chooseBranch() {
       if (!data.repository) return;
+      const branches = fetchBranches(data.repository);
       const branch = await pickOne({
         title: `Switch branch · ${data.repository}`,
         current: data.branch,
-        items: fetchBranches(data.repository).then((list) =>
+        items: branches.then((list) =>
           list.map((b) => ({
             id: b.name,
             label: b.name,
-            description: b.isDefault ? "default" : "",
+            description: b.isDetached ? "detached HEAD" : b.isDefault ? "current" : "",
           })),
         ),
       });
-      if (branch !== null) setBranch(branch);
+      if (branch === null) return;
+      const picked = (await branches).find((b) => b.name === branch);
+      setBranch(branch, { detached: !!picked?.isDetached });
     }
   },
 );

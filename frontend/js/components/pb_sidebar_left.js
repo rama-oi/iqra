@@ -54,8 +54,8 @@ customElements.define(
 
         // Click a local branch to switch to it.
         this.querySelector(".pb-local .pb-content").addEventListener("click", (e) => {
-          const name = e.target.closest("button[data-branch]")?.dataset.branch;
-          if (name) setBranch(name);
+          const btn = e.target.closest("button[data-branch]");
+          if (btn) setBranch(btn.dataset.branch, { detached: "detached" in btn.dataset });
         });
         for (const type of ["pb-repository-change", "pb-branch-change"]) {
           document.addEventListener(type, () => this.#render());
@@ -92,7 +92,7 @@ customElements.define(
       this.querySelector(".pb-local .pb-content").innerHTML = this.#branches
         .map(
           (b) =>
-            `<li><button type="button" data-branch="${escapeHtml(b.name)}"${b.name === data.branch ? ' class="pb-active" aria-current="true"' : ""}>${ICON_BRANCH}${escapeHtml(b.name)}</button></li>`,
+            `<li><button type="button" data-branch="${escapeHtml(b.name)}"${b.isDetached ? ' data-detached title="Detached HEAD: on this commit, not on a branch"' : ""}${b.name === data.branch ? ' class="pb-active" aria-current="true"' : ""}>${ICON_BRANCH}${escapeHtml(b.name)}</button></li>`,
         )
         .join("");
 

@@ -19,6 +19,9 @@ pub struct Branch {
     pub name: String,
     /// True for the branch the repository is on (HEAD).
     pub is_default: bool,
+    /// True for the one entry that stands for a detached HEAD: its name is the short
+    /// hash of the commit checked out, and it comes first.
+    pub is_detached: bool,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -36,6 +39,8 @@ pub enum RefKind {
     Branch,
     Remote,
     Tag,
+    /// A detached HEAD: it is on a commit, not on a branch.
+    Head,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
