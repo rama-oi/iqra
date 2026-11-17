@@ -8,7 +8,6 @@ frontend/   the app: vanilla web components, no build step
 backend/    Rust workspace
   crates/core     git logic (libgit2 for reads, the git binary for clone/commit); no HTTP, no UI
   crates/server   REST API + the frontend embedded in the binary
-nix/        package and NixOS module
 ```
 
 ## NixOS
