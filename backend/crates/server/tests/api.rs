@@ -194,7 +194,7 @@ async fn reads_match_the_shapes_the_frontend_expects() {
 
     let (s, j) = get(&e.app, "/api/repos/demo/branches").await;
     assert_eq!(s, StatusCode::OK);
-    assert_eq!(j["branches"], json!([{ "name": "main", "isDefault": true }, { "name": "feature", "isDefault": false }]));
+    assert_eq!(j["branches"], json!([{ "name": "main", "isDefault": true, "isDetached": false }, { "name": "feature", "isDefault": false, "isDetached": false }]));
 
     let (s, j) = get(&e.app, "/api/repos/demo/commits?limit=10&branch=main").await;
     assert_eq!(s, StatusCode::OK);
@@ -311,4 +311,125 @@ async fn folder_browsing_lists_folders_and_explains_failures() {
     // like everything else, only for our own host names
     let (s, ..) = call(&e.app, "GET", "/api/fs", &[("host", "evil.example")], None).await;
     assert_eq!(s, StatusCode::FORBIDDEN);
+}
+
+// ---- SSH identities ---------------------------------------------------------------------
+
+/// A real passphrase-less key when ssh-keygen exists (core then checks it with
+/// ssh-keygen); otherwise an armored stand-in, which core accepts without it.
+fn private_key() -> String {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("k");
+    let made = Command::new("ssh-keygen")
+        .args(["-q", "-t", "ed25519", "-N", "", "-C", "iqra-test", "-f"])
+        .arg(&path)
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    if made {
+        std::fs::read_to_string(&path).unwrap()
+    } else {
+        "-----BEGIN OPENSSH PRIVATE KEY-----\nAAAA\n-----END OPENSSH PRIVATE KEY-----\n".into()
+    }
+}
+
+async fn upload(app: &Router, name: &str, key: &str, headers: &[(&str, &str)]) -> (StatusCode, Value) {
+    let b = "XBOUNDARYX";
+    let body = format!(
+        "--{b}\r\nContent-Disposition: form-data; name=\"name\"\r\n\r\n{name}\r\n\
+         --{b}\r\nContent-Disposition: form-data; name=\"key\"; filename=\"id_ed25519\"\r\n\
+         Content-Type: application/octet-stream\r\n\r\n{key}\r\n--{b}--\r\n"
+    );
+    let mut req = Request::builder()
+        .method("POST")
+        .uri("/api/identities")
+        .header("host", "localhost:4747")
+        .header(header::CONTENT_TYPE, format!("multipart/form-data; boundary={b}"));
+    for (k, v) in headers {
+        req = req.header(*k, *v);
+    }
+    let res = app.clone().oneshot(req.body(Body::from(body)).unwrap()).await.unwrap();
+    let status = res.status();
+    let bytes = res.into_body().collect().await.unwrap().to_bytes();
+    (status, serde_json::from_slice(&bytes).unwrap_or(Value::Null))
+}
+
+#[tokio::test]
+async fn identities_are_added_activated_and_removed_and_the_key_never_comes_back() {
+    let e = env();
+    let (s, j) = get(&e.app, "/api/identities").await;
+    assert_eq!((s, &j["identities"]), (StatusCode::OK, &json!([])));
+
+    let key = private_key();
+    let (s, j) = upload(&e.app, "Work", &key, &[]).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    let first = &j["identities"][0];
+    assert_eq!((first["name"].as_str(), first["keyName"].as_str(), first["isActive"].as_bool()), (Some("Work"), Some("id_ed25519"), Some(true)));
+    assert!(first["avatarUrl"].is_null());
+    let first_id = first["id"].as_str().unwrap().to_string();
+
+    // nothing in any reply contains the private key
+    let (_, _, _, text) = call(&e.app, "GET", "/api/identities", &[], None).await;
+    assert!(!text.contains("PRIVATE KEY"), "{text}");
+
+    let (s, j) = upload(&e.app, "Personal", &key, &[]).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert_eq!(j["identities"].as_array().unwrap().len(), 2);
+    assert_eq!(j["identities"][0]["isActive"], true, "adding does not switch identity");
+    let second_id = j["identities"][1]["id"].as_str().unwrap().to_string();
+
+    let (s, _, j, _) = call(&e.app, "POST", &format!("/api/identities/{second_id}/activate"), &[], None).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert_eq!(j["identities"][1]["isActive"], true);
+    assert_eq!(j["identities"][0]["isActive"], false);
+
+    let (s, _, j, _) = call(&e.app, "DELETE", &format!("/api/identities/{second_id}"), &[], None).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert_eq!(j["identities"].as_array().unwrap().len(), 1);
+    assert_eq!(j["identities"][0]["id"], first_id.as_str());
+    assert_eq!(j["identities"][0]["isActive"], true, "the remaining one takes over");
+
+    let (s, _, j, _) = call(&e.app, "DELETE", "/api/identities/id-99", &[], None).await;
+    assert_eq!(s, StatusCode::NOT_FOUND, "{j}");
+    assert!(j["error"].is_string());
+}
+
+#[tokio::test]
+async fn bad_uploads_explain_themselves_and_cross_site_ones_are_refused() {
+    let e = env();
+    let (s, j) = upload(&e.app, "Work", "ssh-ed25519 AAAAC3 me@host", &[]).await;
+    assert_eq!(s, StatusCode::BAD_REQUEST);
+    assert!(j["error"].as_str().unwrap().contains("public key"), "{j}");
+
+    let (s, j) = upload(&e.app, "Work", "not a key", &[]).await;
+    assert_eq!(s, StatusCode::BAD_REQUEST, "{j}");
+
+    let key = private_key();
+    let (s, j) = upload(&e.app, "  ", &key, &[]).await;
+    assert_eq!(s, StatusCode::BAD_REQUEST, "{j}");
+
+    // another website cannot add a key on the person's behalf
+    let (s, j) = upload(&e.app, "Evil", &key, &[("origin", "https://evil.example")]).await;
+    assert_eq!(s, StatusCode::FORBIDDEN, "{j}");
+    // our own page can
+    let (s, j) = upload(&e.app, "Mine", &key, &[("origin", "http://localhost:4747")]).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+
+    // a body that is not multipart gets the API's error shape
+    let (s, _, j, _) = call(&e.app, "POST", "/api/identities", &[], Some(json!({}))).await;
+    assert!(s.is_client_error(), "{s}");
+    assert!(j["error"].is_string());
+
+    // far too big to be a key
+    let (s, _) = upload(&e.app, "Big", &"a".repeat(100_000), &[]).await;
+    assert!(s.is_client_error(), "{s}");
+}
+
+#[tokio::test]
+async fn issues_are_an_empty_list_for_a_known_project_only() {
+    let e = env();
+    open_demo(&e).await;
+    let (s, j) = get(&e.app, "/api/repos/demo/issues").await;
+    assert_eq!((s, &j["issues"]), (StatusCode::OK, &json!([])));
+    assert_eq!(get(&e.app, "/api/repos/nope/issues").await.0, StatusCode::NOT_FOUND);
 }

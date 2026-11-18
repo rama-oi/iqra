@@ -9,6 +9,7 @@
 mod browse;
 mod cli;
 mod error;
+mod identities;
 mod model;
 mod paths;
 mod registry;
@@ -19,6 +20,7 @@ mod time;
 pub use browse::{Folder, Listing, list_folders};
 pub use cli::{checkout, clone_ssh, commit, pull, push, stage, stash_pop, stash_push, unstage};
 pub use error::{Error, Result};
+pub use identities::{Identities, Identity};
 pub use model::*;
 pub use paths::{display_path, expand_tilde};
 pub use registry::Registry;

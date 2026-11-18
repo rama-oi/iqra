@@ -3,8 +3,9 @@
 
 use std::sync::Arc;
 
-use axum::extract::{Path, State};
-use axum::routing::{get, post};
+use axum::extract::multipart::MultipartRejection;
+use axum::extract::{DefaultBodyLimit, Multipart, Path, State};
+use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use iqra_core::{
     DiffTarget, Project, Repo, display_path, expand_tilde, validate_project_name, validate_ssh_url,
@@ -24,6 +25,10 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/projects", get(list_projects).post(clone_project))
         .route("/projects/open", post(open_project))
         .route("/fs", get(browse))
+        .route("/identities", get(list_identities).post(add_identity).layer(DefaultBodyLimit::max(64 * 1024)))
+        .route("/identities/{id}/activate", post(activate_identity))
+        .route("/identities/{id}", delete(remove_identity))
+        .route("/repos/{repo}/issues", get(issues))
         .route("/repos/{repo}/branches", get(branches))
         .route("/repos/{repo}/remote-branches", get(remote_branches))
         .route("/repos/{repo}/stage", post(stage))
@@ -103,11 +108,12 @@ async fn clone_project(State(state): Shared, ApiJson(body): ApiJson<CloneBody>) 
         registry.check_free(&name, &dest)?;
     }
     let url = body.url.clone();
+    let key = active_key(&state);
     let project = {
         let dest = dest.clone();
         let name = name.clone();
         blocking(move || {
-            iqra_core::clone_ssh(&url, &dest)?;
+            iqra_core::clone_ssh(&url, &dest, key.as_deref())?;
             Ok(Repo::open(&name, &dest)?.project())
         })
         .await?
@@ -310,20 +316,22 @@ fn on_a_branch(r: &Repo) -> iqra_core::Result<()> {
 }
 
 async fn push(State(state): Shared, Path(repo): Path<String>) -> Reply {
+    let key = active_key(&state);
     blocking(move || {
         let r = open_repo_blocking(&state, &repo)?;
         on_a_branch(&r)?;
-        iqra_core::push(r.path())
+        iqra_core::push(r.path(), key.as_deref())
     })
     .await?;
     Ok(Json(json!({})))
 }
 
 async fn pull(State(state): Shared, Path(repo): Path<String>) -> Reply {
+    let key = active_key(&state);
     blocking(move || {
         let r = open_repo_blocking(&state, &repo)?;
         on_a_branch(&r)?;
-        iqra_core::pull(r.path())
+        iqra_core::pull(r.path(), key.as_deref())
     })
     .await?;
     Ok(Json(json!({})))
@@ -351,4 +359,86 @@ async fn stash_push(State(state): Shared, Path(repo): Path<String>, ApiJson(body
 async fn stash_pop(State(state): Shared, Path(repo): Path<String>) -> Reply {
     blocking(move || iqra_core::stash_pop(open_repo_blocking(&state, &repo)?.path())).await?;
     Ok(Json(json!({})))
+}
+
+// ---- SSH identities -------------------------------------------------------------------
+//
+// The browser sends a private key once (multipart) and never sees it again: the list
+// carries names, file names and the public half only.
+
+/// The key file of the active identity; clone, pull and push authenticate with it.
+fn active_key(state: &AppState) -> Option<std::path::PathBuf> {
+    state.identities.lock().unwrap_or_else(|e| e.into_inner()).active_key()
+}
+
+fn identities_json(state: &AppState) -> Value {
+    let ids = state.identities.lock().unwrap_or_else(|e| e.into_inner());
+    let active = ids.active_id();
+    let list: Vec<Value> = ids
+        .list()
+        .iter()
+        .map(|i| {
+            json!({
+                "id": i.id,
+                "name": i.name,
+                "avatarUrl": null,
+                "keyName": i.key_name,
+                "publicKey": i.public_key,
+                "isActive": Some(i.id.as_str()) == active,
+            })
+        })
+        .collect();
+    json!({ "identities": list })
+}
+
+async fn list_identities(State(state): Shared) -> Reply {
+    Ok(Json(identities_json(&state)))
+}
+
+async fn add_identity(State(state): Shared, form: Result<Multipart, MultipartRejection>) -> Reply {
+    // our own error shape, also for a body that is not a form upload
+    let mut form = form.map_err(|_| ApiError::invalid("Send the name and the key file as a form upload."))?;
+    let (mut name, mut key) = (None, None);
+    while let Some(field) = form.next_field().await.map_err(|e| ApiError::invalid(format!("Invalid upload: {e}")))? {
+        match field.name() {
+            Some("name") => name = Some(field.text().await.map_err(|e| ApiError::invalid(format!("Invalid upload: {e}")))?),
+            Some("key") => {
+                let file_name = field.file_name().unwrap_or("").to_string();
+                let bytes = field.bytes().await.map_err(|e| ApiError::invalid(format!("Invalid upload: {e}")))?;
+                key = Some((file_name, bytes));
+            }
+            _ => {}
+        }
+    }
+    let name = name.ok_or_else(|| ApiError::invalid("Give the identity a name."))?;
+    let (file_name, bytes) = key.ok_or_else(|| ApiError::invalid("Choose the private key file."))?;
+
+    // ssh-keygen runs while the key is checked, so keep it off the async threads
+    let state2 = state.clone();
+    blocking(move || {
+        let mut ids = state2.identities.lock().unwrap_or_else(|e| e.into_inner());
+        ids.add(&name, &file_name, &bytes).map(|_| ())
+    })
+    .await?;
+    Ok(Json(identities_json(&state)))
+}
+
+async fn activate_identity(State(state): Shared, Path(id): Path<String>) -> Reply {
+    state.identities.lock().unwrap_or_else(|e| e.into_inner()).activate(&id)?;
+    Ok(Json(identities_json(&state)))
+}
+
+async fn remove_identity(State(state): Shared, Path(id): Path<String>) -> Reply {
+    state.identities.lock().unwrap_or_else(|e| e.into_inner()).remove(&id)?;
+    Ok(Json(identities_json(&state)))
+}
+
+// ---- issues ---------------------------------------------------------------------------
+
+/// Issues live on a forge (GitHub, ...), not in git, so there is nothing to read from a
+/// repository on disk yet. The Backlog view shows an honest empty list until a forge
+/// integration exists.
+async fn issues(State(state): Shared, Path(repo): Path<String>) -> Reply {
+    blocking(move || open_repo_blocking(&state, &repo).map(|_| ())).await?;
+    Ok(Json(json!({ "issues": [] })))
 }

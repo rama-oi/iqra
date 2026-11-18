@@ -1,59 +1,51 @@
 # Iqra
 
-A git client you open in any browser. A small Rust service runs on your machine, reads and writes your
-repositories, and serves the app on a port you choose.
+A web Git client: a small Rust service (git logic + REST API) that serves the frontend.
+Run it on your machine, open it in a browser.
 
-```
-frontend/   the app: vanilla web components, no build step
-backend/    Rust workspace
-  crates/core     git logic (libgit2 for reads, the git binary for clone/commit); no HTTP, no UI
-  crates/server   REST API + the frontend embedded in the binary
-```
-
-## NixOS
-
-Add the flake and enable the service (it runs as **your user**, so your SSH keys, `~/.gitconfig` and
-repositories work as they do in a terminal):
-
-```nix
-# flake.nix
-inputs.iqra.url = "path:/home/you/code/iqra";   # or github:you/iqra
-# ...
-modules = [
-  iqra.nixosModules.default
-  ({ ... }: {
-    services.iqra = {
-      enable = true;
-      port = 4747;                 # http://localhost:4747 in any browser
-      cloneDir = "~/code";         # where new clones go (default ~/Projects)
-      # sshAuthSock = "%t/ssh-agent";   # if cloning private repos says "Permission denied (publickey)"
-      # host = "127.0.0.1";             # keep it on loopback: there is no login yet
-      # allowedHosts = [ "git.lan" ];   # extra names you reach it by
-      # autoStart = false;              # define it, start with `systemctl --user start iqra`
-    };
-  })
-];
-```
-
-Logs: `journalctl --user -u iqra -f`. Restart after a rebuild: `systemctl --user restart iqra`.
-
-## Without Nix
+## Quick start
 
 ```sh
-cargo run --manifest-path backend/Cargo.toml          # debug: frontend/ is read from disk, edit and reload
-cargo build --release --manifest-path backend/Cargo.toml   # one file with the frontend inside
-IQRA_PORT=8080 iqra                                    # or --port 8080
+cd backend
+cargo build --release          # the frontend is embedded in the binary
+./target/release/iqra          # http://127.0.0.1:4747
 ```
 
-Options (flag / environment): `--host` `IQRA_HOST`, `--port` `IQRA_PORT`, `--data-dir` `IQRA_DATA_DIR`,
-`--clone-dir` `IQRA_CLONE_DIR`, `--allowed-host` `IQRA_ALLOWED_HOSTS`, log level `IQRA_LOG` (default `info`).
+Needs `git` and `ssh` on the PATH. Open http://localhost:4747, then:
 
-## Security
+1. **Settings (corner avatar) → SSH → add an identity**: a name and your *private* key
+   file. Use a key **without a passphrase** (Iqra cannot type one). Click *Copy public
+   key* and paste it into GitHub → Settings → SSH keys.
+2. **`+` tab → Clone** with an SSH URL (`git@github.com:you/repo.git`), or **Open** a
+   repository already on disk.
+3. Stage, commit, pull and push from the toolbar. Clone, pull and push authenticate with
+   the active identity; with none, Iqra uses your ssh-agent and `~/.ssh/config`.
 
-There is no login. The service listens on 127.0.0.1, refuses requests whose `Host` is not an expected
-name (DNS rebinding), refuses writes whose `Origin` is not the page itself, and only accepts JSON bodies.
-Do not expose it to a network you do not trust.
+Commits use your normal git config (`user.name`, `user.email`, signing, hooks).
 
-## Tests
+## Configuration (flags or `IQRA_*` environment variables)
 
-`cargo test --manifest-path backend/Cargo.toml` (needs `git` on PATH).
+| Option | Env | Default |
+|---|---|---|
+| `--host` | `IQRA_HOST` | `127.0.0.1` |
+| `--port` | `IQRA_PORT` | `4747` |
+| `--data-dir` | `IQRA_DATA_DIR` | `~/.local/share/iqra` (projects, identities, keys) |
+| `--clone-dir` | `IQRA_CLONE_DIR` | `~/Projects` |
+| `--allowed-host` | `IQRA_ALLOWED_HOSTS` | extra host names, if you reach it by a name |
+
+## Things to know
+
+* **There is no login.** Anything that can reach the port can use your repositories and
+  keys. Keep it on `127.0.0.1`. Host and Origin checks stop other websites from using it.
+* Uploaded keys live in `<data-dir>/keys/` (mode 0600) and are never sent back to the
+  browser. Deleting an identity deletes its key file.
+* A host seen for the first time is trusted and remembered (`accept-new`); a host whose key
+  *changes* is refused.
+* Not built yet: merge/conflict view, branch create/delete, fetch, issues (the Backlog
+  view is empty: issues live on a forge, not in git).
+
+## Development
+
+```sh
+cd backend && cargo test       # debug builds serve ../frontend from disk: edit and reload
+```

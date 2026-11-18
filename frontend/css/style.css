@@ -783,6 +783,12 @@ pb-app {
       }
     }
 
+    .pb-hint {
+      color: var(--disabled);
+      font-size: 0.85rem;
+      margin: 0;
+    }
+
     .pb-user,
     .pb-users li {
       display: flex;

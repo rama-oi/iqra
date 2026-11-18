@@ -1,4 +1,2 @@
-/backend/target/
-/result
-/.direnv/
-/ref
+target/
+node_modules/

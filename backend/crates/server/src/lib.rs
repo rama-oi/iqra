@@ -11,12 +11,13 @@ use std::sync::{Arc, Mutex};
 
 use axum::Router;
 use axum::middleware;
-use iqra_core::Registry;
+use iqra_core::{Identities, Registry};
 
 pub use config::Config;
 
 pub struct AppState {
     pub registry: Mutex<Registry>,
+    pub identities: Mutex<Identities>,
     pub clone_dir: PathBuf,
     /// Lower-case host names (no port) allowed in the `Host` header.
     pub accepted_hosts: Vec<String>,
@@ -26,6 +27,7 @@ pub fn build_state(config: &Config) -> anyhow::Result<Arc<AppState>> {
     let (data_dir, clone_dir) = config::ensure_dirs(config)?;
     Ok(Arc::new(AppState {
         registry: Mutex::new(Registry::open(data_dir.join("projects.json"))?),
+        identities: Mutex::new(Identities::open(&data_dir)?),
         clone_dir,
         accepted_hosts: config.accepted_hosts(),
     }))

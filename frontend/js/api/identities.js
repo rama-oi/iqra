@@ -6,7 +6,8 @@
 //   POST   /api/identities/:id/activate    -> { identities: [...] }
 //   DELETE /api/identities/:id             -> { identities: [...] }
 //
-// identity: { id, name, avatarUrl | null, keyName, isActive }
+// identity: { id, name, avatarUrl | null, keyName, publicKey | null, isActive }
+// Errors answer { error: "human readable text" }, which becomes the Error's message.
 // The private key is only ever sent to the backend, never kept in the browser.
 
 import MOCK from "./config.js";
@@ -17,7 +18,7 @@ const BASE = "/api/identities";
 // survive a refresh. Only name and key file name go there: the key itself never does.
 const STORAGE_KEY = "pb-mock-identities";
 const SEED = [
-  { id: "id-1", name: "Fikret", avatarUrl: null, keyName: "id_ed25519", isActive: true },
+  { id: "id-1", name: "Fikret", avatarUrl: null, keyName: "id_ed25519", publicKey: null, isActive: true },
   { id: "id-2", name: "Marc Dubois", avatarUrl: null, keyName: "id_rsa_work", isActive: false },
 ];
 
@@ -47,7 +48,10 @@ const snapshot = () => structuredClone(mockStore);
 
 async function request(path = "", options) {
   const res = await fetch(`${BASE}${path}`, options);
-  if (!res.ok) throw new Error(`Request failed (${res.status})`);
+  if (!res.ok) {
+    const reply = await res.json().catch(() => ({}));
+    throw new Error(reply.error || `Request failed (${res.status})`);
+  }
   return (await res.json()).identities;
 }
 

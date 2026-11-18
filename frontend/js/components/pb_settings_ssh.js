@@ -6,6 +6,7 @@ import {
   removeIdentity,
 } from "../api/identities.js";
 import { setIdentity } from "../api/data.js";
+import { toast } from "../lib/toast.js";
 import "./pb_file_picker.js";
 
 // Settings > SSH: the identities (name + private key) used for git operations.
@@ -40,6 +41,11 @@ customElements.define(
         <button type="submit" class="pb-add-ssh pb-btn">+ Add new SSH</button>
       </form>
       <p class="pb-error" hidden></p>
+      <p class="pb-hint">
+        The active identity's key is used to clone, pull and push. Use a key without a
+        passphrase, and add its public key to your account on GitHub or your git host.
+        With no identity, Iqra uses your ssh-agent and ~/.ssh/config like a terminal does.
+      </p>
 
       <hr>
 
@@ -75,6 +81,8 @@ customElements.define(
         this.#loadIdentities(selectIdentity(id));
       } else if (btn.classList.contains("pb-remove")) {
         this.#loadIdentities(removeIdentity(id));
+      } else if (btn.classList.contains("pb-copy")) {
+        this.#copyPublicKey(id);
       }
     }
 
@@ -89,6 +97,17 @@ customElements.define(
       if (ok) form.reset();
     }
 
+    async #copyPublicKey(id) {
+      const key = this.#identities.find((i) => i.id === id)?.publicKey;
+      if (!key) return;
+      try {
+        await navigator.clipboard.writeText(key);
+        toast("Public key copied. Paste it into your git host's SSH keys.");
+      } catch {
+        toast("Could not copy. Select the key from the page and copy it yourself.", { error: true });
+      }
+    }
+
     async #loadIdentities(request) {
       const $error = this.#html.$error;
       try {
@@ -96,7 +115,7 @@ customElements.define(
         $error.hidden = true;
       } catch (err) {
         console.error(err);
-        $error.textContent = "Something went wrong, try again.";
+        $error.textContent = err.message || "Something went wrong, try again.";
         $error.hidden = false;
         return false;
       }
@@ -119,6 +138,7 @@ customElements.define(
             <pb-avatar class="pb-small" name="${escapeHtml(i.name)}" src="${escapeHtml(i.avatarUrl ?? "")}"></pb-avatar>
             <span class="pb-name">${escapeHtml(i.name)}</span>
             <span class="pb-key">${escapeHtml(i.keyName)}</span>
+            ${i.publicKey ? `<button type="button" class="pb-copy" title="Copy the public key">Copy public key</button>` : ""}
             ${
               i.isActive
                 ? `<span class="pb-badge">Active</span>`

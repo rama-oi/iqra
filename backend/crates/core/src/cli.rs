@@ -46,32 +46,63 @@ fn run(mut cmd: Command) -> Result<()> {
     Err(Error::Git(text))
 }
 
-/// ssh must never ask a question (host key, passphrase) with nobody to answer, or
-/// the request would hang. Respect any ssh command the person configured.
-fn ssh_never_prompts(cmd: &mut Command) {
-    if std::env::var_os("GIT_SSH_COMMAND").is_some() || std::env::var_os("GIT_SSH").is_some() {
-        return;
-    }
-    let configured = Command::new("git")
-        .args(["config", "--get", "core.sshCommand"])
-        .output()
-        .map(|o| !o.stdout.is_empty())
-        .unwrap_or(false);
-    if !configured {
-        cmd.env("GIT_SSH_COMMAND", "ssh -o BatchMode=yes");
-    }
+/// Single-quotes a string for the shell that runs `GIT_SSH_COMMAND`.
+fn shell_quote(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "'\\''"))
 }
 
-fn clone_unchecked(url: &str, dest: &Path) -> Result<()> {
+/// The ssh command git should run. With a key, only that key is offered
+/// (`IdentitiesOnly`), so the agent's other keys cannot log in as somebody else.
+///
+/// * `BatchMode`: ssh must never ask a question with nobody to answer, or the request
+///   would hang.
+/// * `StrictHostKeyChecking=accept-new`: a host seen for the first time is remembered
+///   instead of refused (batch mode cannot ask "are you sure?"), but a host whose key
+///   *changed* is still refused.
+/// * `ConnectTimeout`: an unreachable host fails in seconds, not minutes.
+fn ssh_command(key: Option<&Path>) -> String {
+    let mut parts = vec!["ssh".to_string()];
+    if let Some(key) = key {
+        parts.push("-i".into());
+        parts.push(shell_quote(&key.to_string_lossy()));
+        parts.push("-o IdentitiesOnly=yes".into());
+    }
+    parts.push("-o BatchMode=yes".into());
+    parts.push("-o StrictHostKeyChecking=accept-new".into());
+    parts.push("-o ConnectTimeout=20".into());
+    parts.join(" ")
+}
+
+/// Sets up ssh for a command that talks to a remote. A chosen identity (`key`) wins
+/// over everything; otherwise any ssh command the person configured is respected, and
+/// plain ssh (agent, ~/.ssh/config) is used with the safe options above.
+fn ssh_never_prompts(cmd: &mut Command, key: Option<&Path>) {
+    if key.is_none() {
+        if std::env::var_os("GIT_SSH_COMMAND").is_some() || std::env::var_os("GIT_SSH").is_some() {
+            return;
+        }
+        let configured = Command::new("git")
+            .args(["config", "--get", "core.sshCommand"])
+            .output()
+            .map(|o| !o.stdout.is_empty())
+            .unwrap_or(false);
+        if configured {
+            return;
+        }
+    }
+    cmd.env("GIT_SSH_COMMAND", ssh_command(key));
+}
+
+fn clone_unchecked(url: &str, dest: &Path, key: Option<&Path>) -> Result<()> {
     let mut cmd = Command::new("git");
     cmd.arg("clone").arg("--").arg(url).arg(dest);
-    ssh_never_prompts(&mut cmd);
+    ssh_never_prompts(&mut cmd, key);
     run(cmd)
 }
 
-/// `git clone` over SSH into `dest`, which must not exist yet. Anything that is not
-/// an SSH URL is refused before git sees it.
-pub fn clone_ssh(url: &str, dest: &Path) -> Result<()> {
+/// `git clone` over SSH into `dest`, which must not exist yet, authenticating with
+/// `key` when given. Anything that is not an SSH URL is refused before git sees it.
+pub fn clone_ssh(url: &str, dest: &Path, key: Option<&Path>) -> Result<()> {
     validate_ssh_url(url)?;
     if dest.exists() {
         return Err(Error::Conflict(format!("The folder {} already exists.", dest.display())));
@@ -79,7 +110,7 @@ pub fn clone_ssh(url: &str, dest: &Path) -> Result<()> {
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    clone_unchecked(url.trim(), dest)
+    clone_unchecked(url.trim(), dest, key)
 }
 
 /// Commits what is staged, or with `amend` folds it into the last commit. An empty
@@ -177,15 +208,15 @@ pub fn stash_pop(repo: &Path) -> Result<()> {
 
 /// Fetches and fast-forwards the current branch. It never merges or rebases by
 /// itself: when the branches diverged, git's message says so.
-pub fn pull(repo: &Path) -> Result<()> {
+pub fn pull(repo: &Path, key: Option<&Path>) -> Result<()> {
     let mut cmd = git_in(repo);
     cmd.args(["pull", "--ff-only"]);
-    ssh_never_prompts(&mut cmd);
+    ssh_never_prompts(&mut cmd, key);
     run(cmd)
 }
 
 /// Pushes the current branch; the first push of a branch sets its upstream on origin.
-pub fn push(repo: &Path) -> Result<()> {
+pub fn push(repo: &Path, key: Option<&Path>) -> Result<()> {
     let has_upstream = git_in(repo)
         .args(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"])
         .output()
@@ -196,7 +227,7 @@ pub fn push(repo: &Path) -> Result<()> {
     if !has_upstream {
         cmd.args(["--set-upstream", "origin", "HEAD"]);
     }
-    ssh_never_prompts(&mut cmd);
+    ssh_never_prompts(&mut cmd, key);
     run(cmd)
 }
 
@@ -207,7 +238,7 @@ mod tests {
     #[test]
     fn refuses_https_before_running_git() {
         let dir = tempfile::tempdir().unwrap();
-        let err = clone_ssh("https://github.com/owner/repo.git", &dir.path().join("x")).unwrap_err();
+        let err = clone_ssh("https://github.com/owner/repo.git", &dir.path().join("x"), None).unwrap_err();
         assert!(matches!(err, Error::Invalid(_)));
         assert!(!dir.path().join("x").exists());
     }
@@ -215,14 +246,14 @@ mod tests {
     #[test]
     fn refuses_an_existing_folder() {
         let dir = tempfile::tempdir().unwrap();
-        let err = clone_ssh("git@github.com:o/r.git", dir.path()).unwrap_err();
+        let err = clone_ssh("git@github.com:o/r.git", dir.path(), None).unwrap_err();
         assert!(matches!(err, Error::Conflict(_)));
     }
 
     #[test]
     fn clone_runs_git_and_reports_its_failure() {
         let dir = tempfile::tempdir().unwrap();
-        let err = clone_unchecked("/definitely/not/a/repo", &dir.path().join("x")).unwrap_err();
+        let err = clone_unchecked("/definitely/not/a/repo", &dir.path().join("x"), None).unwrap_err();
         match err {
             Error::Git(text) => assert!(text.to_lowercase().contains("does not exist") || text.contains("fatal"), "{text}"),
             other => panic!("{other:?}"),
@@ -239,7 +270,7 @@ mod tests {
 
         let dest = tempfile::tempdir().unwrap();
         let target = dest.path().join("copy");
-        clone_unchecked(src.path().to_str().unwrap(), &target).unwrap();
+        clone_unchecked(src.path().to_str().unwrap(), &target, None).unwrap();
         assert!(target.join(".git").exists());
     }
 
@@ -359,11 +390,41 @@ mod tests {
         sh(&one, &["init", "-q", "-b", "main"]);
         sh(&one, &["remote", "add", "origin", remote.to_str().unwrap()]);
         sh(&one, &["commit", "-q", "--allow-empty", "-m", "first"]);
-        push(&one).unwrap(); // sets the upstream
+        push(&one, None).unwrap(); // sets the upstream
         sh(tmp.path(), &["clone", "-q", remote.to_str().unwrap(), two.to_str().unwrap()]);
         sh(&one, &["commit", "-q", "--allow-empty", "-m", "second"]);
-        push(&one).unwrap();
-        pull(&two).unwrap();
+        push(&one, None).unwrap();
+        pull(&two, None).unwrap();
         assert_eq!(sh(&two, &["log", "--format=%s", "-1"]), "second");
+    }
+
+    #[test]
+    fn ssh_command_offers_only_the_chosen_key_and_never_prompts() {
+        let plain = ssh_command(None);
+        assert!(plain.contains("BatchMode=yes") && plain.contains("accept-new") && !plain.contains("-i "));
+
+        let with_key = ssh_command(Some(Path::new("/data/keys/id-1")));
+        assert!(with_key.starts_with("ssh -i '/data/keys/id-1' -o IdentitiesOnly=yes"), "{with_key}");
+        assert!(with_key.contains("BatchMode=yes"));
+    }
+
+    #[test]
+    fn a_key_path_cannot_break_out_of_its_quotes() {
+        assert_eq!(shell_quote("/a b/it's"), r#"'/a b/it'\''s'"#);
+        let cmd = ssh_command(Some(Path::new("/x'; touch /tmp/pwned; '")));
+        // run it through a real shell: ssh is replaced by echo, so we see the argv
+        let out = Command::new("sh").arg("-c").arg(cmd.replacen("ssh", "printf '%s\\n'", 1)).output().unwrap();
+        let text = String::from_utf8_lossy(&out.stdout);
+        assert!(text.contains("/x'; touch /tmp/pwned; '"), "{text}");
+        assert!(!Path::new("/tmp/pwned").exists());
+    }
+
+    #[test]
+    fn the_chosen_key_reaches_git_as_ssh_command() {
+        let mut cmd = Command::new("git");
+        ssh_never_prompts(&mut cmd, Some(Path::new("/k")));
+        let env: Vec<_> = cmd.get_envs().collect();
+        let (_, v) = env.iter().find(|(k, _)| *k == "GIT_SSH_COMMAND").unwrap();
+        assert!(v.unwrap().to_string_lossy().contains("-i '/k'"));
     }
 }
