@@ -109,11 +109,12 @@ async fn clone_project(State(state): Shared, ApiJson(body): ApiJson<CloneBody>) 
     }
     let url = body.url.clone();
     let key = active_key(&state);
+    let state2 = state.clone();
     let project = {
         let dest = dest.clone();
         let name = name.clone();
         blocking(move || {
-            iqra_core::clone_ssh(&url, &dest, key.as_deref())?;
+            iqra_core::clone_ssh(&url, &dest, ssh_of(&key, &state2))?;
             Ok(Repo::open(&name, &dest)?.project())
         })
         .await?
@@ -320,7 +321,7 @@ async fn push(State(state): Shared, Path(repo): Path<String>) -> Reply {
     blocking(move || {
         let r = open_repo_blocking(&state, &repo)?;
         on_a_branch(&r)?;
-        iqra_core::push(r.path(), key.as_deref())
+        iqra_core::push(r.path(), ssh_of(&key, &state))
     })
     .await?;
     Ok(Json(json!({})))
@@ -331,7 +332,7 @@ async fn pull(State(state): Shared, Path(repo): Path<String>) -> Reply {
     blocking(move || {
         let r = open_repo_blocking(&state, &repo)?;
         on_a_branch(&r)?;
-        iqra_core::pull(r.path(), key.as_deref())
+        iqra_core::pull(r.path(), ssh_of(&key, &state))
     })
     .await?;
     Ok(Json(json!({})))
@@ -369,6 +370,11 @@ async fn stash_pop(State(state): Shared, Path(repo): Path<String>) -> Reply {
 /// The key file of the active identity; clone, pull and push authenticate with it.
 fn active_key(state: &AppState) -> Option<std::path::PathBuf> {
     state.identities.lock().unwrap_or_else(|e| e.into_inner()).active_key()
+}
+
+/// What git needs to authenticate: the active key plus the fallback config.
+fn ssh_of<'a>(key: &'a Option<std::path::PathBuf>, state: &'a AppState) -> iqra_core::Ssh<'a> {
+    iqra_core::Ssh { key: key.as_deref(), fallback_config: Some(&state.ssh_config) }
 }
 
 fn identities_json(state: &AppState) -> Value {

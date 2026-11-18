@@ -37,13 +37,52 @@ fn run(mut cmd: Command) -> Result<()> {
     if text.is_empty() {
         text = "git failed without saying why.".into();
     } else if text.to_ascii_lowercase().contains("bad owner or permissions") {
-        // ssh refuses its own config or key files when they are not the service user's
-        text.push_str(
+        let lower = text.to_ascii_lowercase();
+        let system = ["/nix/store/", "/etc/", "/usr/"].iter().any(|p| lower.contains(&format!("bad owner or permissions on {p}")));
+        text.push_str(if system {
+            "\nssh does not trust a system config file. That usually means the service runs in a sandbox where \
+             root-owned files look foreign (systemd PrivateUsers= or DynamicUser=): run Iqra as your own user."
+        } else {
             "\nssh does not trust that file: it must belong to the user running Iqra, and only that user \
-             may write it (chmod 600 for keys and ~/.ssh/config, chmod 700 for ~/.ssh).",
-        );
+             may write it (chmod 600 for keys and ~/.ssh/config, chmod 700 for ~/.ssh)."
+        });
     }
     Err(Error::Git(text))
+}
+
+/// How a command that talks to a remote authenticates.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Ssh<'a> {
+    /// The private key of the active identity.
+    pub key: Option<&'a Path>,
+    /// A config file (see `write_ssh_config`) that replaces the *system-wide* ssh config,
+    /// used only when ssh refuses that system config ("Bad owner or permissions", as
+    /// happens in sandboxed services where root-owned files look foreign).
+    pub fallback_config: Option<&'a Path>,
+}
+
+/// Writes the fallback config into `dir`: it only pulls in the person's own
+/// `~/.ssh/config`, so per-host settings survive while `/etc/ssh/ssh_config` is skipped.
+pub fn write_ssh_config(dir: &Path) -> Result<std::path::PathBuf> {
+    std::fs::create_dir_all(dir)?;
+    let path = dir.join("ssh_config");
+    std::fs::write(&path, "# written by Iqra: used only when ssh distrusts the system config\nInclude ~/.ssh/config\n")?;
+    Ok(path)
+}
+
+/// Runs a remote command; if ssh refuses a root-owned system file, runs it once more
+/// with the fallback config, which leaves the system config out.
+fn run_remote(ssh: Ssh<'_>, mut build: impl FnMut(Ssh<'_>) -> Command) -> Result<()> {
+    let plain = Ssh { fallback_config: None, ..ssh };
+    match run(build(plain)) {
+        Err(Error::Git(text))
+            if ssh.fallback_config.is_some()
+                && text.to_ascii_lowercase().contains("bad owner or permissions on /") =>
+        {
+            run(build(ssh))
+        }
+        other => other,
+    }
 }
 
 /// Single-quotes a string for the shell that runs `GIT_SSH_COMMAND`.
@@ -60,8 +99,12 @@ fn shell_quote(s: &str) -> String {
 ///   instead of refused (batch mode cannot ask "are you sure?"), but a host whose key
 ///   *changed* is still refused.
 /// * `ConnectTimeout`: an unreachable host fails in seconds, not minutes.
-fn ssh_command(key: Option<&Path>) -> String {
+fn ssh_command(key: Option<&Path>, config: Option<&Path>) -> String {
     let mut parts = vec!["ssh".to_string()];
+    if let Some(config) = config {
+        parts.push("-F".into());
+        parts.push(shell_quote(&config.to_string_lossy()));
+    }
     if let Some(key) = key {
         parts.push("-i".into());
         parts.push(shell_quote(&key.to_string_lossy()));
@@ -76,7 +119,8 @@ fn ssh_command(key: Option<&Path>) -> String {
 /// Sets up ssh for a command that talks to a remote. A chosen identity (`key`) wins
 /// over everything; otherwise any ssh command the person configured is respected, and
 /// plain ssh (agent, ~/.ssh/config) is used with the safe options above.
-fn ssh_never_prompts(cmd: &mut Command, key: Option<&Path>) {
+fn ssh_never_prompts(cmd: &mut Command, ssh: Ssh<'_>) {
+    let key = ssh.key;
     if key.is_none() {
         if std::env::var_os("GIT_SSH_COMMAND").is_some() || std::env::var_os("GIT_SSH").is_some() {
             return;
@@ -90,19 +134,20 @@ fn ssh_never_prompts(cmd: &mut Command, key: Option<&Path>) {
             return;
         }
     }
-    cmd.env("GIT_SSH_COMMAND", ssh_command(key));
+    cmd.env("GIT_SSH_COMMAND", ssh_command(key, ssh.fallback_config));
 }
 
-fn clone_unchecked(url: &str, dest: &Path, key: Option<&Path>) -> Result<()> {
-    let mut cmd = Command::new("git");
-    cmd.arg("clone").arg("--").arg(url).arg(dest);
-    ssh_never_prompts(&mut cmd, key);
-    run(cmd)
+fn clone_unchecked(url: &str, dest: &Path, ssh: Ssh<'_>) -> Result<()> {
+    run_remote(ssh, |ssh| {
+        let mut cmd = Command::new("git");
+        cmd.arg("clone").arg("--").arg(url).arg(dest);
+        ssh_never_prompts(&mut cmd, ssh);
+        cmd
+    })
 }
 
-/// `git clone` over SSH into `dest`, which must not exist yet, authenticating with
-/// `key` when given. Anything that is not an SSH URL is refused before git sees it.
-pub fn clone_ssh(url: &str, dest: &Path, key: Option<&Path>) -> Result<()> {
+/// `git clone` over SSH into `dest`, which must not exist yet. Anything that is not an SSH URL is refused before git sees it.
+pub fn clone_ssh(url: &str, dest: &Path, ssh: Ssh<'_>) -> Result<()> {
     validate_ssh_url(url)?;
     if dest.exists() {
         return Err(Error::Conflict(format!("The folder {} already exists.", dest.display())));
@@ -110,7 +155,7 @@ pub fn clone_ssh(url: &str, dest: &Path, key: Option<&Path>) -> Result<()> {
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    clone_unchecked(url.trim(), dest, key)
+    clone_unchecked(url.trim(), dest, ssh)
 }
 
 /// Commits what is staged, or with `amend` folds it into the last commit. An empty
@@ -208,27 +253,31 @@ pub fn stash_pop(repo: &Path) -> Result<()> {
 
 /// Fetches and fast-forwards the current branch. It never merges or rebases by
 /// itself: when the branches diverged, git's message says so.
-pub fn pull(repo: &Path, key: Option<&Path>) -> Result<()> {
-    let mut cmd = git_in(repo);
-    cmd.args(["pull", "--ff-only"]);
-    ssh_never_prompts(&mut cmd, key);
-    run(cmd)
+pub fn pull(repo: &Path, ssh: Ssh<'_>) -> Result<()> {
+    run_remote(ssh, |ssh| {
+        let mut cmd = git_in(repo);
+        cmd.args(["pull", "--ff-only"]);
+        ssh_never_prompts(&mut cmd, ssh);
+        cmd
+    })
 }
 
 /// Pushes the current branch; the first push of a branch sets its upstream on origin.
-pub fn push(repo: &Path, key: Option<&Path>) -> Result<()> {
+pub fn push(repo: &Path, ssh: Ssh<'_>) -> Result<()> {
     let has_upstream = git_in(repo)
         .args(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"])
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false);
-    let mut cmd = git_in(repo);
-    cmd.arg("push");
-    if !has_upstream {
-        cmd.args(["--set-upstream", "origin", "HEAD"]);
-    }
-    ssh_never_prompts(&mut cmd, key);
-    run(cmd)
+    run_remote(ssh, |ssh| {
+        let mut cmd = git_in(repo);
+        cmd.arg("push");
+        if !has_upstream {
+            cmd.args(["--set-upstream", "origin", "HEAD"]);
+        }
+        ssh_never_prompts(&mut cmd, ssh);
+        cmd
+    })
 }
 
 #[cfg(test)]
@@ -238,7 +287,7 @@ mod tests {
     #[test]
     fn refuses_https_before_running_git() {
         let dir = tempfile::tempdir().unwrap();
-        let err = clone_ssh("https://github.com/owner/repo.git", &dir.path().join("x"), None).unwrap_err();
+        let err = clone_ssh("https://github.com/owner/repo.git", &dir.path().join("x"), Ssh::default()).unwrap_err();
         assert!(matches!(err, Error::Invalid(_)));
         assert!(!dir.path().join("x").exists());
     }
@@ -246,14 +295,14 @@ mod tests {
     #[test]
     fn refuses_an_existing_folder() {
         let dir = tempfile::tempdir().unwrap();
-        let err = clone_ssh("git@github.com:o/r.git", dir.path(), None).unwrap_err();
+        let err = clone_ssh("git@github.com:o/r.git", dir.path(), Ssh::default()).unwrap_err();
         assert!(matches!(err, Error::Conflict(_)));
     }
 
     #[test]
     fn clone_runs_git_and_reports_its_failure() {
         let dir = tempfile::tempdir().unwrap();
-        let err = clone_unchecked("/definitely/not/a/repo", &dir.path().join("x"), None).unwrap_err();
+        let err = clone_unchecked("/definitely/not/a/repo", &dir.path().join("x"), Ssh::default()).unwrap_err();
         match err {
             Error::Git(text) => assert!(text.to_lowercase().contains("does not exist") || text.contains("fatal"), "{text}"),
             other => panic!("{other:?}"),
@@ -270,7 +319,7 @@ mod tests {
 
         let dest = tempfile::tempdir().unwrap();
         let target = dest.path().join("copy");
-        clone_unchecked(src.path().to_str().unwrap(), &target, None).unwrap();
+        clone_unchecked(src.path().to_str().unwrap(), &target, Ssh::default()).unwrap();
         assert!(target.join(".git").exists());
     }
 
@@ -390,20 +439,20 @@ mod tests {
         sh(&one, &["init", "-q", "-b", "main"]);
         sh(&one, &["remote", "add", "origin", remote.to_str().unwrap()]);
         sh(&one, &["commit", "-q", "--allow-empty", "-m", "first"]);
-        push(&one, None).unwrap(); // sets the upstream
+        push(&one, Ssh::default()).unwrap(); // sets the upstream
         sh(tmp.path(), &["clone", "-q", remote.to_str().unwrap(), two.to_str().unwrap()]);
         sh(&one, &["commit", "-q", "--allow-empty", "-m", "second"]);
-        push(&one, None).unwrap();
-        pull(&two, None).unwrap();
+        push(&one, Ssh::default()).unwrap();
+        pull(&two, Ssh::default()).unwrap();
         assert_eq!(sh(&two, &["log", "--format=%s", "-1"]), "second");
     }
 
     #[test]
     fn ssh_command_offers_only_the_chosen_key_and_never_prompts() {
-        let plain = ssh_command(None);
+        let plain = ssh_command(None, None);
         assert!(plain.contains("BatchMode=yes") && plain.contains("accept-new") && !plain.contains("-i "));
 
-        let with_key = ssh_command(Some(Path::new("/data/keys/id-1")));
+        let with_key = ssh_command(Some(Path::new("/data/keys/id-1")), None);
         assert!(with_key.starts_with("ssh -i '/data/keys/id-1' -o IdentitiesOnly=yes"), "{with_key}");
         assert!(with_key.contains("BatchMode=yes"));
     }
@@ -411,7 +460,7 @@ mod tests {
     #[test]
     fn a_key_path_cannot_break_out_of_its_quotes() {
         assert_eq!(shell_quote("/a b/it's"), r#"'/a b/it'\''s'"#);
-        let cmd = ssh_command(Some(Path::new("/x'; touch /tmp/pwned; '")));
+        let cmd = ssh_command(Some(Path::new("/x'; touch /tmp/pwned; '")), None);
         // run it through a real shell: ssh is replaced by echo, so we see the argv
         let out = Command::new("sh").arg("-c").arg(cmd.replacen("ssh", "printf '%s\\n'", 1)).output().unwrap();
         let text = String::from_utf8_lossy(&out.stdout);
@@ -422,9 +471,51 @@ mod tests {
     #[test]
     fn the_chosen_key_reaches_git_as_ssh_command() {
         let mut cmd = Command::new("git");
-        ssh_never_prompts(&mut cmd, Some(Path::new("/k")));
+        ssh_never_prompts(&mut cmd, Ssh { key: Some(Path::new("/k")), fallback_config: None });
         let env: Vec<_> = cmd.get_envs().collect();
         let (_, v) = env.iter().find(|(k, _)| *k == "GIT_SSH_COMMAND").unwrap();
         assert!(v.unwrap().to_string_lossy().contains("-i '/k'"));
+    }
+
+    #[test]
+    fn a_distrusted_system_config_is_retried_without_it() {
+        let cfg = Path::new("/data/ssh_config");
+        // "ssh" that fails exactly as the real one does until it is given -F
+        let build = |ssh: Ssh<'_>| {
+            let mut c = Command::new("sh");
+            let script = if ssh.fallback_config.is_some() {
+                "exit 0"
+            } else {
+                "echo 'Bad owner or permissions on /nix/store/x/ssh_config.d/20.conf' >&2; exit 1"
+            };
+            c.args(["-c", script]);
+            c
+        };
+        let with = Ssh { key: None, fallback_config: Some(cfg) };
+        assert!(run_remote(with, build).is_ok());
+        // without a fallback config there is nothing to retry with: the error surfaces, with the right hint
+        let err = run_remote(Ssh::default(), build).unwrap_err().to_string();
+        assert!(err.contains("Bad owner") && err.contains("PrivateUsers"), "{err}");
+    }
+
+    #[test]
+    fn other_failures_are_not_retried() {
+        let mut calls = 0;
+        let r = run_remote(Ssh { key: None, fallback_config: Some(Path::new("/c")) }, |_| {
+            calls += 1;
+            let mut c = Command::new("sh");
+            c.args(["-c", "echo 'Permission denied (publickey).' >&2; exit 1"]);
+            c
+        });
+        assert!(r.is_err());
+        assert_eq!(calls, 1);
+    }
+
+    #[test]
+    fn fallback_config_includes_the_users_own_config_only() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = write_ssh_config(dir.path()).unwrap();
+        assert!(std::fs::read_to_string(&path).unwrap().contains("Include ~/.ssh/config"));
+        assert!(ssh_command(None, Some(&path)).starts_with("ssh -F '"));
     }
 }

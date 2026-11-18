@@ -18,7 +18,7 @@ mod ssh_url;
 mod time;
 
 pub use browse::{Folder, Listing, list_folders};
-pub use cli::{checkout, clone_ssh, commit, pull, push, stage, stash_pop, stash_push, unstage};
+pub use cli::{Ssh, checkout, clone_ssh, commit, pull, push, stage, stash_pop, stash_push, unstage, write_ssh_config};
 pub use error::{Error, Result};
 pub use identities::{Identities, Identity};
 pub use model::*;

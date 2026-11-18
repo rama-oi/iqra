@@ -18,6 +18,8 @@ pub use config::Config;
 pub struct AppState {
     pub registry: Mutex<Registry>,
     pub identities: Mutex<Identities>,
+    /// Fallback ssh config, see `iqra_core::Ssh`.
+    pub ssh_config: PathBuf,
     pub clone_dir: PathBuf,
     /// Lower-case host names (no port) allowed in the `Host` header.
     pub accepted_hosts: Vec<String>,
@@ -28,6 +30,7 @@ pub fn build_state(config: &Config) -> anyhow::Result<Arc<AppState>> {
     Ok(Arc::new(AppState {
         registry: Mutex::new(Registry::open(data_dir.join("projects.json"))?),
         identities: Mutex::new(Identities::open(&data_dir)?),
+        ssh_config: iqra_core::write_ssh_config(&data_dir)?,
         clone_dir,
         accepted_hosts: config.accepted_hosts(),
     }))
