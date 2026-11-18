@@ -152,6 +152,21 @@ async fn open_project(State(state): Shared, ApiJson(body): ApiJson<OpenBody>) ->
     })
     .await?;
     let mut registry = state.registry.lock().unwrap_or_else(|e| e.into_inner());
+
+    // Opening what is already open is not an error: show it (the frontend opens its tab).
+    if let Some(existing) = registry.find_by_path(&path).cloned() {
+        let project = Repo::open(&existing.name, &existing.path)?.project();
+        return Ok(Json(json!({ "project": project })));
+    }
+    // The name belongs to a project whose folder is gone or no longer a repository:
+    // follow it to the new folder instead of leaving the name stuck forever.
+    if let Ok(old) = registry.get(&name).cloned()
+        && Repo::open(&old.name, &old.path).is_err()
+    {
+        registry.rebind(&name, path)?;
+        return Ok(Json(json!({ "project": project })));
+    }
+
     registry.add(&name, path)?;
     Ok(Json(json!({ "project": project })))
 }

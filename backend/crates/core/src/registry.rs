@@ -47,11 +47,36 @@ impl Registry {
             .ok_or_else(|| Error::NotFound(format!("There is no project named \"{name}\".")))
     }
 
+    /// The project registered for this folder, whatever it is called.
+    pub fn find_by_path(&self, path: &Path) -> Option<&Entry> {
+        self.projects
+            .iter()
+            .find(|p| p.path == path || p.path.canonicalize().is_ok_and(|c| c == path))
+    }
+
+    /// Points an existing project at another folder (its old one moved or is gone).
+    pub fn rebind(&mut self, name: &str, path: PathBuf) -> Result<Entry> {
+        let index = self
+            .projects
+            .iter()
+            .position(|p| p.name == name)
+            .ok_or_else(|| Error::NotFound(format!("There is no project named \"{name}\".")))?;
+        let old = std::mem::replace(&mut self.projects[index].path, path);
+        if let Err(e) = self.save() {
+            self.projects[index].path = old;
+            return Err(e);
+        }
+        Ok(self.projects[index].clone())
+    }
+
     /// Rejects a name or folder that is already registered.
     pub fn check_free(&self, name: &str, path: &Path) -> Result<()> {
         validate_project_name(name)?;
         if self.projects.iter().any(|p| p.name == name) {
-            return Err(Error::Conflict(format!("A project named \"{name}\" already exists.")));
+            let other = self.projects.iter().find(|p| p.name == name).map(|p| crate::display_path(&p.path)).unwrap_or_default();
+            return Err(Error::Conflict(format!(
+                "A project named \"{name}\" already exists ({other}). Type a different name."
+            )));
         }
         if let Some(existing) = self.projects.iter().find(|p| p.path == path) {
             return Err(Error::Conflict(format!(
@@ -103,6 +128,11 @@ mod tests {
         assert!(matches!(reg.add("again", "/code/iqra".into()), Err(Error::Conflict(_))));
         assert!(matches!(reg.add("../evil", "/code/x".into()), Err(Error::Invalid(_))));
         assert!(matches!(reg.get("nope"), Err(Error::NotFound(_))));
+        assert_eq!(reg.find_by_path(Path::new("/code/iqra")).unwrap().name, "iqra");
+        assert!(reg.find_by_path(Path::new("/code/none")).is_none());
+        reg.rebind("iqra", "/code/moved".into()).unwrap();
+        assert_eq!(Registry::open(&file).unwrap().get("iqra").unwrap().path, PathBuf::from("/code/moved"));
+        reg.rebind("iqra", "/code/iqra".into()).unwrap();
 
         let reopened = Registry::open(&file).unwrap();
         assert_eq!(reopened.list(), reg.list());

@@ -165,8 +165,22 @@ async fn opening_registers_a_project_once() {
     assert!(j["projects"][0]["description"].as_str().unwrap().len() > 3);
 
     let path = e.repo.path().to_str().unwrap();
-    let (s, _, j, _) = call(&e.app, "POST", "/api/projects/open", &[], Some(json!({ "path": path, "name": "demo" }))).await;
+    // the same folder again just opens it, even under another name: still one project
+    for name in ["demo", "other-name"] {
+        let (s, _, j, _) = call(&e.app, "POST", "/api/projects/open", &[], Some(json!({ "path": path, "name": name }))).await;
+        assert_eq!(s, StatusCode::OK, "{j}");
+        assert_eq!(j["project"]["name"], "demo");
+    }
+    assert_eq!(get(&e.app, "/api/projects").await.1["projects"].as_array().unwrap().len(), 1);
+
+    // a different repository wanting the same name is refused, and the message says why
+    let other = tempfile::tempdir().unwrap();
+    git(other.path(), &["init", "-q", "-b", "main"]);
+    let (s, _, j, _) = call(&e.app, "POST", "/api/projects/open", &[], Some(json!({ "path": other.path(), "name": "demo" }))).await;
     assert_eq!(s, StatusCode::CONFLICT, "{j}");
+    assert!(j["error"].as_str().unwrap().contains("different name"), "{j}");
+    let (s, _, j, _) = call(&e.app, "POST", "/api/projects/open", &[], Some(json!({ "path": other.path(), "name": "demo2" }))).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
 
     let dir = tempfile::tempdir().unwrap();
     let (s, _, j, _) = call(&e.app, "POST", "/api/projects/open", &[], Some(json!({ "path": dir.path(), "name": "plain" }))).await;
@@ -432,4 +446,21 @@ async fn issues_are_an_empty_list_for_a_known_project_only() {
     let (s, j) = get(&e.app, "/api/repos/demo/issues").await;
     assert_eq!((s, &j["issues"]), (StatusCode::OK, &json!([])));
     assert_eq!(get(&e.app, "/api/repos/nope/issues").await.0, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn a_name_whose_folder_is_gone_follows_the_new_folder() {
+    let e = env();
+    open_demo(&e).await; // "demo" -> e.repo
+
+    // the old folder disappears (moved, deleted); the same name is opened from elsewhere
+    let moved = tempfile::tempdir().unwrap();
+    git(moved.path(), &["init", "-q", "-b", "main"]);
+    std::fs::remove_dir_all(e.repo.path().join(".git")).unwrap();
+
+    let (s, _, j, _) = call(&e.app, "POST", "/api/projects/open", &[], Some(json!({ "path": moved.path(), "name": "demo" }))).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    let (_, j) = get(&e.app, "/api/projects").await;
+    assert_eq!(j["projects"].as_array().unwrap().len(), 1);
+    assert_eq!(get(&e.app, "/api/repos/demo/branches").await.0, StatusCode::OK);
 }
