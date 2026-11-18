@@ -13,9 +13,11 @@ cargo build --release          # the frontend is embedded in the binary
 
 Needs `git` and `ssh` on the PATH. Open http://localhost:4747, then:
 
-1. **Settings (corner avatar) → SSH → add an identity**: a name and your *private* key
-   file. Use a key **without a passphrase** (Iqra cannot type one). Click *Copy public
-   key* and paste it into GitHub → Settings → SSH keys.
+1. **Settings (corner avatar) → SSH → add an identity**: your *private* key file (the
+   name is optional). Use a key **without a passphrase** (Iqra cannot type one). Click
+   *Copy public key* and paste it into GitHub → Settings → SSH keys, then press *Sync*.
+   Iqra asks GitHub which account the key belongs to (`ssh -T git@github.com`) and shows
+   that account's name and picture. Only github.com is recognised.
 2. **`+` tab → Clone** with an SSH URL (`git@github.com:you/repo.git`), or **Open** a
    repository already on disk.
 3. Stage, commit, pull and push from the toolbar. Clone, pull and push authenticate with
@@ -39,6 +41,11 @@ Commits use your normal git config (`user.name`, `user.email`, signing, hooks).
   keys. Keep it on `127.0.0.1`. Host and Origin checks stop other websites from using it.
 * Uploaded keys live in `<data-dir>/keys/` (mode 0600) and are never sent back to the
   browser. Deleting an identity deletes its key file.
+* The GitHub name and picture come from `api.github.com` (public data, no token, 60
+  requests an hour per address). If it cannot be reached, the account's login and its
+  `github.com/<login>.png` picture are used.
+* At startup the log says which data folder was read and how many projects and identities
+  it held (`journalctl --user -u iqra`).
 * A host seen for the first time is trusted and remembered (`accept-new`); a host whose key
   *changes* is refused.
 * Not built yet: merge/conflict view, branch create/delete, fetch, issues (the Backlog

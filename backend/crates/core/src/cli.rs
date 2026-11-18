@@ -85,6 +85,36 @@ fn run_remote(ssh: Ssh<'_>, mut build: impl FnMut(Ssh<'_>) -> Command) -> Result
     }
 }
 
+/// Reads the login out of what `ssh -T git@github.com` prints for a key GitHub knows:
+/// "Hi <login>! You've successfully authenticated, but GitHub does not provide shell
+/// access." Anything else (an unknown key, no network) gives `None`.
+fn parse_github_login(output: &str) -> Option<String> {
+    let rest = output.lines().find_map(|l| l.trim().strip_prefix("Hi "))?;
+    let (login, tail) = rest.split_once('!')?;
+    let valid = !login.is_empty()
+        && login.len() <= 39
+        && login.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+        && tail.contains("successfully authenticated");
+    valid.then(|| login.to_string())
+}
+
+/// Asks GitHub which account `ssh.key` logs in as. The key must already be added to that
+/// account (Settings → SSH keys). Never an error: `None` covers an unregistered key, no
+/// network, no ssh. Retries without the system ssh config like `run_remote` does.
+pub fn github_login(ssh: Ssh<'_>) -> Option<String> {
+    ssh.key?;
+    let probe = |ssh: Ssh<'_>| {
+        let script = format!("{} -T git@github.com", ssh_command(ssh.key, ssh.fallback_config));
+        let out = Command::new("sh").arg("-c").arg(script).stdin(Stdio::null()).output().ok()?;
+        Some(format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr)))
+    };
+    let text = probe(Ssh { fallback_config: None, ..ssh })?;
+    if ssh.fallback_config.is_some() && text.to_ascii_lowercase().contains("bad owner or permissions on /") {
+        return parse_github_login(&probe(ssh)?);
+    }
+    parse_github_login(&text)
+}
+
 /// Single-quotes a string for the shell that runs `GIT_SSH_COMMAND`.
 fn shell_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
@@ -517,5 +547,25 @@ mod tests {
         let path = write_ssh_config(dir.path()).unwrap();
         assert!(std::fs::read_to_string(&path).unwrap().contains("Include ~/.ssh/config"));
         assert!(ssh_command(None, Some(&path)).starts_with("ssh -F '"));
+    }
+
+    #[test]
+    fn github_login_is_read_from_the_ssh_greeting() {
+        let ok = "Warning: Permanently added 'github.com' to the list of known hosts.\nHi octo-cat! You've successfully authenticated, but GitHub does not provide shell access.\n";
+        assert_eq!(parse_github_login(ok).as_deref(), Some("octo-cat"));
+        for bad in [
+            "git@github.com: Permission denied (publickey).",
+            "Hi there! How are you?",
+            "Hi ! You've successfully authenticated",
+            "Hi a/b! You've successfully authenticated",
+            "",
+        ] {
+            assert_eq!(parse_github_login(bad), None, "{bad}");
+        }
+    }
+
+    #[test]
+    fn no_key_means_no_lookup() {
+        assert_eq!(github_login(Ssh::default()), None);
     }
 }

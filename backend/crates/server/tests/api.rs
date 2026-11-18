@@ -5,7 +5,7 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use http_body_util::BodyExt;
-use iqra_server::{Config, build_state, router};
+use iqra_server::{Config, router};
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
@@ -22,6 +22,11 @@ struct Env {
 }
 
 fn env() -> Env {
+    // GitHub is never asked in tests unless a test brings its own lookup
+    env_with(Box::new(|_| None))
+}
+
+fn env_with(lookup: iqra_server::ProfileLookup) -> Env {
     let repo = tempfile::tempdir().unwrap();
     let r = repo.path();
     git(r, &["init", "-q", "-b", "main"]);
@@ -42,7 +47,7 @@ fn env() -> Env {
         clone_dir: Some(clones.path().into()),
         allowed_hosts: vec!["git.lan".into()],
     };
-    Env { app: router(build_state(&config).unwrap()), repo, _data: data, _clones: clones }
+    Env { app: router(iqra_server::build_state_with(&config, lookup).unwrap()), repo, _data: data, _clones: clones }
 }
 
 async fn call(app: &Router, method: &str, uri: &str, headers: &[(&str, &str)], body: Option<Value>) -> (StatusCode, header_map::H, Value, String) {
@@ -419,7 +424,7 @@ async fn bad_uploads_explain_themselves_and_cross_site_ones_are_refused() {
     assert_eq!(s, StatusCode::BAD_REQUEST, "{j}");
 
     let key = private_key();
-    let (s, j) = upload(&e.app, "  ", &key, &[]).await;
+    let (s, j) = upload(&e.app, &"n".repeat(101), &key, &[]).await;
     assert_eq!(s, StatusCode::BAD_REQUEST, "{j}");
 
     // another website cannot add a key on the person's behalf
@@ -463,4 +468,77 @@ async fn a_name_whose_folder_is_gone_follows_the_new_folder() {
     let (_, j) = get(&e.app, "/api/projects").await;
     assert_eq!(j["projects"].as_array().unwrap().len(), 1);
     assert_eq!(get(&e.app, "/api/repos/demo/branches").await.0, StatusCode::OK);
+}
+
+// ---- GitHub profile -----------------------------------------------------------------------
+
+use std::sync::{Arc, Mutex};
+
+type Known = Arc<Mutex<Option<iqra_core::Profile>>>;
+
+/// An env whose "GitHub" knows whatever the test puts in the returned cell.
+fn env_with_github() -> (Env, Known) {
+    let known: Known = Arc::new(Mutex::new(None));
+    let seen = known.clone();
+    (env_with(Box::new(move |ssh| {
+        assert!(ssh.key.is_some_and(|k| k.is_file()), "the key is on disk when GitHub is asked");
+        seen.lock().unwrap().clone()
+    })), known)
+}
+
+fn octocat() -> iqra_core::Profile {
+    iqra_core::Profile {
+        login: "octocat".into(),
+        name: Some("The Octocat".into()),
+        avatar_url: Some("https://avatars.githubusercontent.com/u/583231?v=4".into()),
+    }
+}
+
+#[tokio::test]
+async fn an_identity_without_a_name_takes_the_github_name_and_picture() {
+    let (e, known) = env_with_github();
+    *known.lock().unwrap() = Some(octocat());
+
+    let (s, j) = upload(&e.app, "", &private_key(), &[]).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    let i = &j["identities"][0];
+    assert_eq!(i["name"], "The Octocat");
+    assert_eq!(i["githubLogin"], "octocat");
+    assert_eq!(i["avatarUrl"], "https://avatars.githubusercontent.com/u/583231?v=4");
+}
+
+#[tokio::test]
+async fn a_typed_name_is_kept_but_the_picture_still_comes() {
+    let (e, known) = env_with_github();
+    *known.lock().unwrap() = Some(octocat());
+    let (_, j) = upload(&e.app, "Work laptop", &private_key(), &[]).await;
+    let i = &j["identities"][0];
+    assert_eq!((i["name"].as_str(), i["githubLogin"].as_str()), (Some("Work laptop"), Some("octocat")));
+    assert!(i["avatarUrl"].is_string());
+}
+
+#[tokio::test]
+async fn an_unrecognised_key_is_saved_and_sync_works_once_github_knows_it() {
+    let (e, known) = env_with_github();
+    let (s, j) = upload(&e.app, "", &private_key(), &[]).await;
+    assert_eq!(s, StatusCode::OK, "saving never depends on GitHub: {j}");
+    let i = &j["identities"][0];
+    assert_eq!(i["name"], "id_ed25519", "the file name stands in");
+    assert!(i["githubLogin"].is_null() && i["avatarUrl"].is_null());
+    let id = i["id"].as_str().unwrap().to_string();
+
+    // GitHub does not know the key yet: sync says what to do about it
+    let (s, _, j, _) = call(&e.app, "POST", &format!("/api/identities/{id}/refresh"), &[], None).await;
+    assert_eq!(s, StatusCode::UNPROCESSABLE_ENTITY, "{j}");
+    assert!(j["error"].as_str().unwrap().contains("SSH keys"), "{j}");
+
+    // the person adds the key on GitHub, then syncs: the name becomes the GitHub one
+    *known.lock().unwrap() = Some(octocat());
+    let (s, _, j, _) = call(&e.app, "POST", &format!("/api/identities/{id}/refresh"), &[], None).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert_eq!(j["identities"][0]["name"], "The Octocat");
+    assert_eq!(j["identities"][0]["githubLogin"], "octocat");
+
+    let (s, ..) = call(&e.app, "POST", "/api/identities/id-99/refresh", &[], None).await;
+    assert_eq!(s, StatusCode::NOT_FOUND);
 }

@@ -4,6 +4,7 @@ import {
   addIdentity,
   selectIdentity,
   removeIdentity,
+  refreshIdentity,
 } from "../api/identities.js";
 import { setIdentity } from "../api/data.js";
 import { toast } from "../lib/toast.js";
@@ -28,8 +29,8 @@ customElements.define(
     #template = `
       <form class="pb-add">
         <label>
-          <span>Name</span>
-          <input type="text" name="name" required />
+          <span>Name (optional)</span>
+          <input type="text" name="name" placeholder="your GitHub name" autocomplete="off" />
         </label>
         <label>
           <span>Private key</span>
@@ -44,7 +45,9 @@ customElements.define(
       <p class="pb-hint">
         The active identity's key is used to clone, pull and push. Use a key without a
         passphrase, and add its public key to your account on GitHub or your git host.
-        With no identity, Iqra uses your ssh-agent and ~/.ssh/config like a terminal does.
+        Once GitHub knows the key, Iqra shows that account's name and picture: if the key
+        was added to GitHub after the identity, press "Sync". With no identity, Iqra uses
+        your ssh-agent and ~/.ssh/config like a terminal does.
       </p>
 
       <hr>
@@ -70,7 +73,10 @@ customElements.define(
       this.addEventListener("click", (e) => this.#onClick(e));
       this.#html.$form.addEventListener("submit", (e) => this.#onAdd(e));
 
-      this.#loadIdentities(fetchIdentities());
+      this.#loadIdentities(fetchIdentities()).then((ok) => {
+        // the error text lives in the settings dialog: say it where it can be seen
+        if (!ok) toast(`Could not load the SSH identities: ${this.#html.$error.textContent}`, { error: true });
+      });
     }
 
     #onClick(e) {
@@ -83,6 +89,8 @@ customElements.define(
         this.#loadIdentities(removeIdentity(id));
       } else if (btn.classList.contains("pb-copy")) {
         this.#copyPublicKey(id);
+      } else if (btn.classList.contains("pb-sync")) {
+        this.#sync(btn, id);
       }
     }
 
@@ -91,10 +99,26 @@ customElements.define(
       const form = this.#html.$form;
       const name = form.elements.name.value.trim();
       const keyFile = form.elements.key.files[0];
-      if (!name || !keyFile) return;
+      if (!keyFile) return;
 
+      // saving asks GitHub who the key is, which takes a few seconds
+      const $submit = form.querySelector(".pb-add-ssh");
+      $submit.disabled = true;
+      $submit.textContent = "Adding…";
       const ok = await this.#loadIdentities(addIdentity({ name, keyFile }));
+      $submit.disabled = false;
+      $submit.textContent = "+ Add new SSH";
       if (ok) form.reset();
+    }
+
+    async #sync(btn, id) {
+      btn.disabled = true;
+      btn.textContent = "Syncing…";
+      const ok = await this.#loadIdentities(refreshIdentity(id));
+      if (!ok) {
+        btn.disabled = false;
+        btn.textContent = "Sync";
+      }
     }
 
     async #copyPublicKey(id) {
@@ -137,7 +161,8 @@ customElements.define(
           <li data-id="${escapeHtml(i.id)}"${i.isActive ? ' class="pb-active"' : ""}>
             <pb-avatar class="pb-small" name="${escapeHtml(i.name)}" src="${escapeHtml(i.avatarUrl ?? "")}"></pb-avatar>
             <span class="pb-name">${escapeHtml(i.name)}</span>
-            <span class="pb-key">${escapeHtml(i.keyName)}</span>
+            <span class="pb-key">${escapeHtml(i.githubLogin ? `@${i.githubLogin}` : i.keyName)}</span>
+            <button type="button" class="pb-sync" title="Ask GitHub whose key this is and take its name and picture">Sync</button>
             ${i.publicKey ? `<button type="button" class="pb-copy" title="Copy the public key">Copy public key</button>` : ""}
             ${
               i.isActive

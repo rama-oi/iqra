@@ -24,6 +24,21 @@ pub struct Identity {
     /// could derive it.
     #[serde(default)]
     pub public_key: Option<String>,
+    /// The GitHub account this key logs in as, once GitHub has recognised it.
+    #[serde(default)]
+    pub github_login: Option<String>,
+    /// That account's picture (https only: it ends up in an <img>).
+    #[serde(default)]
+    pub avatar_url: Option<String>,
+}
+
+/// What GitHub says about the account a key belongs to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Profile {
+    pub login: String,
+    /// The display name set on the profile; many accounts have none.
+    pub name: Option<String>,
+    pub avatar_url: Option<String>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -139,6 +154,39 @@ impl Identities {
         self.dir.join("keys").join(id)
     }
 
+    /// The key file of an identity, for asking GitHub who it is.
+    pub fn key_path_of(&self, id: &str) -> Option<PathBuf> {
+        self.file.identities.iter().any(|i| i.id == id).then(|| self.key_path(id))
+    }
+
+    /// Records who GitHub says the key belongs to. With `adopt_name` the identity is
+    /// renamed to the GitHub display name (or the login when the profile has none), unless
+    /// another identity already has that name.
+    pub fn set_profile(&mut self, id: &str, profile: Profile, adopt_name: bool) -> Result<Identity> {
+        let index = self
+            .file
+            .identities
+            .iter()
+            .position(|i| i.id == id)
+            .ok_or_else(|| Error::NotFound("There is no such identity.".into()))?;
+        let before = self.file.identities[index].clone();
+
+        let wanted = profile.name.clone().filter(|n| !n.trim().is_empty()).unwrap_or_else(|| profile.login.clone());
+        let free = !self.file.identities.iter().any(|i| i.id != id && i.name == wanted);
+        let entry = &mut self.file.identities[index];
+        if adopt_name && free {
+            entry.name = wanted;
+        }
+        entry.github_login = Some(profile.login);
+        entry.avatar_url = profile.avatar_url;
+        let updated = entry.clone();
+        if let Err(e) = self.save() {
+            self.file.identities[index] = before;
+            return Err(e);
+        }
+        Ok(updated)
+    }
+
     fn next_id(&self) -> String {
         let n = self
             .file
@@ -150,13 +198,15 @@ impl Identities {
         format!("id-{}", n + 1)
     }
 
-    /// Stores a new identity; the first one becomes the active one.
+    /// Stores a new identity; the first one becomes the active one. An empty `name` is
+    /// allowed (the file name stands in until GitHub tells the real one, see
+    /// `set_profile`).
     pub fn add(&mut self, name: &str, key_name: &str, key: &[u8]) -> Result<Identity> {
         let name = name.trim();
-        if name.is_empty() || name.chars().count() > 100 || name.chars().any(|c| c.is_control()) {
-            return Err(key_error("Give the identity a name (up to 100 characters)."));
+        if name.chars().count() > 100 || name.chars().any(|c| c.is_control()) {
+            return Err(key_error("That name is too long (up to 100 characters)."));
         }
-        if self.file.identities.iter().any(|i| i.name == name) {
+        if !name.is_empty() && self.file.identities.iter().any(|i| i.name == name) {
             return Err(Error::Conflict(format!("An identity named \"{name}\" already exists.")));
         }
         let text = normalise_key(key)?;
@@ -187,7 +237,14 @@ impl Identities {
             .map(|n| n.to_string_lossy().into_owned())
             .filter(|n| !n.is_empty())
             .unwrap_or_else(|| "private key".into());
-        let identity = Identity { id: id.clone(), name: name.to_string(), key_name, public_key };
+        let name = if name.is_empty() {
+            // a stand-in that cannot clash with another identity's name
+            let taken = |n: &str| self.file.identities.iter().any(|i| i.name == n);
+            if taken(&key_name) { format!("{key_name} ({id})") } else { key_name.clone() }
+        } else {
+            name.to_string()
+        };
+        let identity = Identity { id: id.clone(), name, key_name, public_key, github_login: None, avatar_url: None };
 
         self.file.identities.push(identity.clone());
         let was_active = self.file.active.clone();
@@ -258,7 +315,7 @@ mod tests {
         let id = ids.next_id();
         fs::create_dir_all(ids.dir.join("keys")).unwrap();
         write_private(&ids.key_path(&id), FAKE).unwrap();
-        let identity = Identity { id: id.clone(), name: name.into(), key_name: "k".into(), public_key: None };
+        let identity = Identity { id: id.clone(), name: name.into(), key_name: "k".into(), public_key: None, github_login: None, avatar_url: None };
         ids.file.identities.push(identity.clone());
         ids.file.active.get_or_insert(id);
         ids.save().unwrap();
@@ -288,7 +345,7 @@ mod tests {
     fn rejects_bad_names_and_bad_keys_without_leaving_files() {
         let dir = tempfile::tempdir().unwrap();
         let mut ids = Identities::open(dir.path()).unwrap();
-        assert!(matches!(ids.add(" ", "k", FAKE.as_bytes()), Err(Error::Invalid(_))));
+        assert!(matches!(ids.add(&"n".repeat(101), "k", FAKE.as_bytes()), Err(Error::Invalid(_))));
         assert!(matches!(ids.add("me", "k", b"nope"), Err(Error::Invalid(_))));
         assert!(ids.list().is_empty());
         assert!(!dir.path().join("keys").exists() || fs::read_dir(dir.path().join("keys")).unwrap().next().is_none());
@@ -329,5 +386,46 @@ mod tests {
         let a = add_unchecked(&mut ids, "a");
         let mode = fs::metadata(ids.key_path(&a.id)).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o600);
+    }
+
+    fn profile(login: &str, name: Option<&str>) -> Profile {
+        Profile { login: login.into(), name: name.map(Into::into), avatar_url: Some(format!("https://avatars.githubusercontent.com/{login}")) }
+    }
+
+    #[test]
+    fn github_profile_fills_in_the_name_and_picture() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut ids = Identities::open(dir.path()).unwrap();
+        let a = add_unchecked(&mut ids, "label I typed");
+
+        // keeping the typed name: only login and picture are recorded
+        let kept = ids.set_profile(&a.id, profile("octocat", Some("The Octocat")), false).unwrap();
+        assert_eq!((kept.name.as_str(), kept.github_login.as_deref()), ("label I typed", Some("octocat")));
+        assert!(kept.avatar_url.unwrap().starts_with("https://"));
+
+        // adopting: the GitHub name wins; no display name falls back to the login
+        assert_eq!(ids.set_profile(&a.id, profile("octocat", Some("The Octocat")), true).unwrap().name, "The Octocat");
+        assert_eq!(ids.set_profile(&a.id, profile("octocat", None), true).unwrap().name, "octocat");
+
+        // a name another identity has is not taken over
+        let b = add_unchecked(&mut ids, "Other");
+        let same = ids.set_profile(&b.id, profile("o", Some("octocat")), true).unwrap();
+        assert_eq!(same.name, "Other");
+
+        assert!(matches!(ids.set_profile("id-99", profile("x", None), true), Err(Error::NotFound(_))));
+        // survives a reopen
+        let again = Identities::open(dir.path()).unwrap();
+        assert_eq!(again.list()[0].github_login.as_deref(), Some("octocat"));
+    }
+
+    #[test]
+    fn a_name_is_optional_and_the_stand_in_never_clashes() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut ids = Identities::open(dir.path()).unwrap();
+        let first = ids.add("", "id_ed25519", FAKE.as_bytes()).unwrap();
+        let second = ids.add("  ", "id_ed25519", FAKE.as_bytes()).unwrap();
+        assert_eq!(first.name, "id_ed25519");
+        assert_ne!(second.name, first.name);
+        assert!(ids.add(&"x".repeat(101), "k", FAKE.as_bytes()).is_err());
     }
 }

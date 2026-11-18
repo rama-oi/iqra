@@ -2,11 +2,14 @@
 //
 // Backend contract (every call answers with the full, updated list):
 //   GET    /api/identities                 -> { identities: [...] }
-//   POST   /api/identities   (multipart: name, key)  -> { identities: [...] }
+//   POST   /api/identities   (multipart: key, name?)  -> { identities: [...] }
+//          name is optional: left out, the identity is named after the GitHub account
+//          the key belongs to (found with `ssh -T git@github.com`)
 //   POST   /api/identities/:id/activate    -> { identities: [...] }
+//   POST   /api/identities/:id/refresh     -> { identities: [...] }  ("sync with GitHub")
 //   DELETE /api/identities/:id             -> { identities: [...] }
 //
-// identity: { id, name, avatarUrl | null, keyName, publicKey | null, isActive }
+// identity: { id, name, avatarUrl | null, githubLogin | null, keyName, publicKey | null, isActive }
 // Errors answer { error: "human readable text" }, which becomes the Error's message.
 // The private key is only ever sent to the backend, never kept in the browser.
 
@@ -68,8 +71,9 @@ export async function addIdentity({ name, keyFile }) {
     await delay();
     mockStore.push({
       id: `id-${++mockCounter}`,
-      name,
+      name: name || keyFile.name,
       avatarUrl: null,
+      githubLogin: null,
       keyName: keyFile.name,
       isActive: mockStore.length === 0,
     });
@@ -77,9 +81,17 @@ export async function addIdentity({ name, keyFile }) {
     return snapshot();
   }
   const body = new FormData();
-  body.set("name", name);
+  if (name) body.set("name", name);
   body.set("key", keyFile);
   return request("", { method: "POST", body });
+}
+
+export async function refreshIdentity(id) {
+  if (USE_MOCK) {
+    await delay();
+    return snapshot();
+  }
+  return request(`/${encodeURIComponent(id)}/refresh`, { method: "POST" });
 }
 
 export async function selectIdentity(id) {

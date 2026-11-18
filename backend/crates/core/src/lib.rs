@@ -18,9 +18,9 @@ mod ssh_url;
 mod time;
 
 pub use browse::{Folder, Listing, list_folders};
-pub use cli::{Ssh, checkout, clone_ssh, commit, pull, push, stage, stash_pop, stash_push, unstage, write_ssh_config};
+pub use cli::{Ssh, checkout, clone_ssh, commit, github_login, pull, push, stage, stash_pop, stash_push, unstage, write_ssh_config};
 pub use error::{Error, Result};
-pub use identities::{Identities, Identity};
+pub use identities::{Identities, Identity, Profile};
 pub use model::*;
 pub use paths::{display_path, expand_tilde};
 pub use registry::Registry;

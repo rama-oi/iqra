@@ -27,6 +27,7 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/fs", get(browse))
         .route("/identities", get(list_identities).post(add_identity).layer(DefaultBodyLimit::max(64 * 1024)))
         .route("/identities/{id}/activate", post(activate_identity))
+        .route("/identities/{id}/refresh", post(refresh_identity))
         .route("/identities/{id}", delete(remove_identity))
         .route("/repos/{repo}/issues", get(issues))
         .route("/repos/{repo}/branches", get(branches))
@@ -402,7 +403,8 @@ fn identities_json(state: &AppState) -> Value {
             json!({
                 "id": i.id,
                 "name": i.name,
-                "avatarUrl": null,
+                "avatarUrl": i.avatar_url,
+                "githubLogin": i.github_login,
                 "keyName": i.key_name,
                 "publicKey": i.public_key,
                 "isActive": Some(i.id.as_str()) == active,
@@ -431,16 +433,56 @@ async fn add_identity(State(state): Shared, form: Result<Multipart, MultipartRej
             _ => {}
         }
     }
-    let name = name.ok_or_else(|| ApiError::invalid("Give the identity a name."))?;
+    // the name is optional: left empty, the identity is named after the GitHub account
+    let name = name.unwrap_or_default();
     let (file_name, bytes) = key.ok_or_else(|| ApiError::invalid("Choose the private key file."))?;
 
-    // ssh-keygen runs while the key is checked, so keep it off the async threads
+    // ssh-keygen and then GitHub are asked while this runs, so keep it off the async threads
     let state2 = state.clone();
     blocking(move || {
-        let mut ids = state2.identities.lock().unwrap_or_else(|e| e.into_inner());
-        ids.add(&name, &file_name, &bytes).map(|_| ())
+        let (id, adopt_name) = {
+            let mut ids = state2.identities.lock().unwrap_or_else(|e| e.into_inner());
+            (ids.add(&name, &file_name, &bytes)?.id, name.trim().is_empty())
+        };
+        // The key is saved either way. Not being recognised (yet) is not a failure: the
+        // public key may not be on GitHub yet, and "sync" can be pressed later.
+        sync_profile(&state2, &id, adopt_name);
+        Ok(())
     })
     .await?;
+    Ok(Json(identities_json(&state)))
+}
+
+/// Asks GitHub who the identity's key is and records the account's name and picture.
+/// Network and ssh are slow, so the identities lock is not held while waiting.
+fn sync_profile(state: &AppState, id: &str, adopt_name: bool) -> bool {
+    let key = state.identities.lock().unwrap_or_else(|e| e.into_inner()).key_path_of(id);
+    let Some(key) = key else { return false };
+    let ssh = iqra_core::Ssh { key: Some(&key), fallback_config: Some(&state.ssh_config) };
+    let Some(profile) = (state.profile_lookup)(ssh) else { return false };
+    let saved = state.identities.lock().unwrap_or_else(|e| e.into_inner()).set_profile(id, profile, adopt_name);
+    if let Err(e) = &saved {
+        tracing::warn!("could not save the GitHub profile: {e}");
+    }
+    saved.is_ok()
+}
+
+/// "Sync with GitHub": looks the account up again and takes its name and picture.
+async fn refresh_identity(State(state): Shared, Path(id): Path<String>) -> Reply {
+    let state2 = state.clone();
+    let found = blocking(move || {
+        if state2.identities.lock().unwrap_or_else(|e| e.into_inner()).key_path_of(&id).is_none() {
+            return Err(iqra_core::Error::NotFound("There is no such identity.".into()));
+        }
+        Ok(sync_profile(&state2, &id, true))
+    })
+    .await?;
+    if !found {
+        return Err(ApiError::new(
+            axum::http::StatusCode::UNPROCESSABLE_ENTITY,
+            "GitHub did not recognise this key. Add its public key under GitHub → Settings → SSH keys, then try again.",
+        ));
+    }
     Ok(Json(identities_json(&state)))
 }
 
