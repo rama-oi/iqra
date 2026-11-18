@@ -1,5 +1,11 @@
 import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
 import { fetchFolders } from "../api/fs.js";
+import { load, save } from "../store/storage.js";
+
+// Where the dialog opens when it is not told where to start: the last folder chosen,
+// or for a git repository its parent, so the repositories next to it are in view.
+const LAST_KEY = "lastFolder";
+const isPath = (v) => typeof v === "string" && v.startsWith("/");
 
 // A modal "choose a folder" dialog that browses the machine running the backend.
 //
@@ -7,6 +13,7 @@ import { fetchFolders } from "../api/fs.js";
 //   // path is the chosen folder, or null when dismissed.
 //
 // Clicking a folder goes into it; "Choose this folder" picks the one being shown.
+// With no `start` it opens where the last choice was made (like a file manager).
 // Folders that are git repositories carry a badge.
 export function browseFolder(options) {
   const browser = document.querySelector(getPrefix("file-browser"));
@@ -86,8 +93,8 @@ customElements.define(
       return new Promise((resolve) => {
         this.#resolve = resolve;
         if (!$dialog.open) $dialog.showModal();
-        // An unreadable start (typo, deleted folder) falls back to home.
-        this.#go(start, { fallbackHome: true });
+        // An unreadable start (typo, deleted folder, an old memory) falls back to home.
+        this.#go(start || load(LAST_KEY, "", isPath), { fallbackHome: true });
       });
     }
 
@@ -165,8 +172,10 @@ customElements.define(
     }
 
     #choose() {
-      const path = this.#listing?.path;
+      const listing = this.#listing;
+      const path = listing?.path;
       if (!path) return;
+      save(LAST_KEY, listing.isRepo && listing.parent ? listing.parent : path);
       this.#finish(path);
       this.#html.$dialog.close();
     }
