@@ -123,10 +123,10 @@ pb-app {
     }
 
     &.pb-danger {
-      color: var(--text);
+      color: var(--text) !important;
       &:hover {
         background-color: var(--danger);
-        color: var(--base);
+        color: var(--base) !important;
       }
     }
 
