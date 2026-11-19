@@ -1,8 +1,8 @@
 import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
 import data, { setBranch } from "../api/data.js";
-import { fetchBranches, fetchRemoteBranches, deleteBranch } from "../api/projects.js";
+import { fetchBranches, fetchRemoteBranches, deleteBranch, deleteRemoteBranch } from "../api/projects.js";
 import { toast } from "../lib/toast.js";
-import { fetchStashes } from "../api/stashes.js";
+import { fetchStashes, dropStash } from "../api/stashes.js";
 
 const ICON_BRANCH = icon("branch");
 const ICON_ARCHIVE = icon("archive");
@@ -60,6 +60,14 @@ customElements.define(
           const del = e.target.closest("button[data-delete]");
           if (del) this.#delete(del.dataset.delete);
         });
+        this.querySelector(".pb-remote .pb-content").addEventListener("click", (e) => {
+          const del = e.target.closest("button[data-delete-remote]");
+          if (del) this.#deleteRemote(del.dataset.deleteRemote);
+        });
+        this.querySelector(".pb-stashes .pb-content").addEventListener("click", (e) => {
+          const del = e.target.closest("button[data-drop]");
+          if (del) this.#drop(del.dataset.drop, del.dataset.label);
+        });
         for (const type of ["pb-repository-change", "pb-branch-change"]) {
           document.addEventListener(type, () => this.#render());
         }
@@ -105,6 +113,30 @@ customElements.define(
       }
     }
 
+    async #deleteRemote(name) {
+      const repo = data.repository;
+      if (!repo || !confirm(`Delete "${name}" on the remote?\nThis removes the branch for everyone who uses it.`)) return;
+      try {
+        await deleteRemoteBranch({ repo, name });
+        toast(`Deleted ${name}.`);
+        document.dispatchEvent(new CustomEvent("pb-history-change"));
+      } catch (err) {
+        toast(err.message || "Could not delete the remote branch.", { error: true });
+      }
+    }
+
+    async #drop(id, label) {
+      const repo = data.repository;
+      if (!repo || !confirm(`Drop the stash "${label}"?\nIts changes are discarded without being applied.`)) return;
+      try {
+        await dropStash({ repo, id });
+        toast("Stash dropped.");
+        document.dispatchEvent(new CustomEvent("pb-history-change"));
+      } catch (err) {
+        toast(err.message || "Could not drop the stash.", { error: true });
+      }
+    }
+
     #render() {
       if (this.#repository !== data.repository) {
         this.#repository = data.repository;
@@ -118,20 +150,28 @@ customElements.define(
           const del =
             active || b.isDetached
               ? ""
-              : `<button type="button" class="pb-delete-branch pb-danger" data-delete="${name}" title="Delete branch ${name}" aria-label="Delete branch ${name}">${icon("times")}</button>`;
+              : `<button type="button" class="pb-delete-branch pb-danger" data-delete="${name}" title="Delete branch ${name}" aria-label="Delete branch ${name}">${icon("trash")}</button>`;
           return `<li class="pb-branch"><button type="button" data-branch="${name}"${b.isDetached ? ' data-detached title="Detached HEAD: on this commit, not on a branch"' : ""}${active ? ' class="pb-active" aria-current="true"' : ""}>${ICON_BRANCH}${name}</button>${del}</li>`;
         })
         .join("");
 
+      const x = (attr, value, what) =>
+        `<button type="button" class="pb-delete-branch pb-danger" ${attr}="${escapeHtml(value)}" title="${escapeHtml(what)}" aria-label="${escapeHtml(what)}">${icon("trash")}</button>`;
+
       this.querySelector(".pb-remote .pb-content").innerHTML = this.#remotes.length
-        ? this.#remotes.map((b) => `<li class="pb-ref" title="${escapeHtml(b.name)}">${ICON_BRANCH}${escapeHtml(b.name)}</li>`).join("")
+        ? this.#remotes
+            .map(
+              (b) =>
+                `<li class="pb-branch" title="${escapeHtml(b.name)}"><span class="pb-ref-name">${ICON_BRANCH}${escapeHtml(b.name)}</span>${x("data-delete-remote", b.name, `Delete ${b.name} on the remote`)}</li>`,
+            )
+            .join("")
         : `<li class="pb-empty">No remote branches.</li>`;
 
       this.querySelector(".pb-stashes .pb-content").innerHTML = this.#stashes.length
         ? this.#stashes
             .map(
               (st) =>
-                `<li><button type="button" title="${escapeHtml(`${st.id} on ${st.branch}`)}">${ICON_ARCHIVE}${escapeHtml(st.message)}</button></li>`,
+                `<li class="pb-branch"><button type="button" title="${escapeHtml(`${st.id} on ${st.branch}`)}">${ICON_ARCHIVE}${escapeHtml(st.message)}</button>${x("data-drop", st.id, `Drop stash ${st.message}`).replace("<button ", `<button data-label="${escapeHtml(st.message)}" `)}</li>`,
             )
             .join("")
         : `<li class="pb-empty">No stashes.</li>`;

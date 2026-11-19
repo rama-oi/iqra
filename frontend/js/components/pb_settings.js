@@ -18,7 +18,7 @@ customElements.define(
 
     #template = `
       <dialog data-tab="ssh">
-        <button type="button" class="pb-close pb-danger" aria-label="Close">
+        <button type="button" class="pb-close" aria-label="Close">
           ${icon("times")}
         </button>
 

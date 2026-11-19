@@ -295,6 +295,45 @@ pub fn stash_pop(repo: &Path) -> Result<()> {
     run(cmd)
 }
 
+/// Drops one stash entry without applying it. `id` is a stash ref like `stash@{2}`.
+pub fn stash_drop(repo: &Path, id: &str) -> Result<()> {
+    let digits = id.strip_prefix("stash@{").and_then(|r| r.strip_suffix('}'));
+    if !digits.is_some_and(|d| !d.is_empty() && d.len() < 6 && d.chars().all(|c| c.is_ascii_digit())) {
+        return Err(Error::Invalid("That is not a stash.".into()));
+    }
+    let mut cmd = Command::new("git");
+    cmd.arg("-C").arg(repo).args(["stash", "drop", id]);
+    run(cmd)
+}
+
+/// Deletes a branch on its remote (`git push <remote> --delete <branch>`); `name` is
+/// the remote-tracking name as listed, like `origin/feature/x`.
+pub fn delete_remote_branch(repo: &Path, name: &str, ssh: Ssh<'_>) -> Result<()> {
+    let name = name.trim();
+    if name.is_empty() || name.starts_with('-') || name.chars().any(|c| c.is_control()) {
+        return Err(Error::Invalid("That is not a remote branch.".into()));
+    }
+    let out = git_in(repo).arg("remote").output()?;
+    let remotes = String::from_utf8_lossy(&out.stdout).into_owned();
+    let found = remotes
+        .lines()
+        .filter(|r| name.strip_prefix(*r).is_some_and(|rest| rest.starts_with('/') && rest.len() > 1))
+        .max_by_key(|r| r.len())
+        .map(|r| (r.to_string(), name[r.len() + 1..].to_string()));
+    let Some((remote, branch)) = found else {
+        return Err(Error::Invalid("That is not a remote branch.".into()));
+    };
+    if branch == "HEAD" {
+        return Err(Error::Invalid("That is not a remote branch.".into()));
+    }
+    run_remote(ssh, |ssh| {
+        let mut cmd = git_in(repo);
+        cmd.args(["push", "--delete"]).arg(&remote).arg("--").arg(&branch);
+        ssh_never_prompts(&mut cmd, ssh);
+        cmd
+    })
+}
+
 /// Fetches and fast-forwards the current branch. It never merges or rebases by
 /// itself: when the branches diverged, git's message says so.
 pub fn pull(repo: &Path, ssh: Ssh<'_>) -> Result<()> {

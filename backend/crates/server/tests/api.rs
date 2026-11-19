@@ -579,3 +579,37 @@ async fn branches_are_deleted_except_the_checked_out_one_and_unmerged_ones_need_
     let (s, ..) = call(&e.app, "DELETE", "/api/repos/demo/branches?name=ghost", &[], None).await;
     assert_ne!(s, StatusCode::OK);
 }
+
+#[tokio::test]
+async fn stashes_are_dropped_and_remote_branches_are_deleted_on_their_remote() {
+    let e = env();
+    open_demo(&e).await;
+    let dir = e.repo.path();
+
+    std::fs::write(dir.join("a.txt"), "changed for the stash").unwrap();
+    git(dir, &["stash", "push", "-m", "keep me out"]);
+    let stash_count = |j: &Value| j["stashes"].as_array().unwrap().len();
+    assert_eq!(stash_count(&get(&e.app, "/api/repos/demo/stashes").await.1), 1);
+    let (s, ..) = call(&e.app, "DELETE", "/api/repos/demo/stashes?id=--all", &[], None).await;
+    assert_eq!(s, StatusCode::BAD_REQUEST);
+    let (s, _, j, _) = call(&e.app, "DELETE", "/api/repos/demo/stashes?id=stash@%7B0%7D", &[], None).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert_eq!(stash_count(&get(&e.app, "/api/repos/demo/stashes").await.1), 0);
+
+    // a bare repository stands in for origin (a local path works without ssh)
+    let origin = tempfile::tempdir().unwrap();
+    git(origin.path(), &["init", "-q", "--bare"]);
+    git(dir, &["remote", "add", "origin", origin.path().to_str().unwrap()]);
+    git(dir, &["push", "-q", "origin", "main:old/topic"]);
+    git(dir, &["fetch", "-q", "origin"]);
+    let remote = |j: &Value| j["branches"].as_array().unwrap().iter().map(|b| b["name"].as_str().unwrap().to_string()).collect::<Vec<_>>();
+    assert!(remote(&get(&e.app, "/api/repos/demo/remote-branches").await.1).contains(&"origin/old/topic".to_string()));
+
+    let (s, ..) = call(&e.app, "DELETE", "/api/repos/demo/remote-branches?name=--delete", &[], None).await;
+    assert_eq!(s, StatusCode::BAD_REQUEST);
+    let (s, ..) = call(&e.app, "DELETE", "/api/repos/demo/remote-branches?name=nowhere/x", &[], None).await;
+    assert_eq!(s, StatusCode::BAD_REQUEST);
+    let (s, _, j, _) = call(&e.app, "DELETE", "/api/repos/demo/remote-branches?name=origin/old/topic", &[], None).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert!(!remote(&get(&e.app, "/api/repos/demo/remote-branches").await.1).contains(&"origin/old/topic".to_string()));
+}

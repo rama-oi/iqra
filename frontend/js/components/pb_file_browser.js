@@ -37,7 +37,7 @@ customElements.define(
       <dialog>
         <header>
           <h2></h2>
-          <button type="button" class="pb-close pb-danger" aria-label="Close">
+          <button type="button" class="pb-close" aria-label="Close">
             ${icon("times")}
           </button>
         </header>

@@ -47,3 +47,20 @@ export async function fetchStashes(repo) {
   if (!res.ok) throw new Error(`Failed to load stashes (${res.status})`);
   return (await res.json()).stashes;
 }
+
+// Throw a stash away without applying it.
+//   DELETE /api/repos/:repo/stashes?id=stash@{0} -> {}  (errors: { error })
+export async function dropStash({ repo, id }) {
+  if (USE_MOCK) {
+    await delay();
+    const list = mockStashes[repo] ?? [];
+    const i = list.findIndex((s) => s.id === id);
+    if (i >= 0) list.splice(i, 1);
+    list.forEach((s, n) => (s.id = `stash@{${n}}`));
+    return {};
+  }
+  const res = await fetch(`/api/repos/${encodeURIComponent(repo)}/stashes?${new URLSearchParams({ id })}`, { method: "DELETE" });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `Could not drop the stash (${res.status})`);
+  return body;
+}

@@ -182,9 +182,22 @@ pb-app {
             display: flex;
             align-items: stretch;
 
-            > button[data-branch] {
+            > button:first-child {
               flex: 1;
               min-width: 0;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+
+            > .pb-ref-name {
+              flex: 1;
+              min-width: 0;
+              display: flex;
+              align-items: center;
+              gap: var(--space-between-inline-items);
+              padding: var(--space-between-blocks);
+              border-inline-start: 3px solid transparent;
               overflow: hidden;
               text-overflow: ellipsis;
               white-space: nowrap;
@@ -197,17 +210,12 @@ pb-app {
               justify-content: center;
               border-inline-start: 0;
               color: var(--overlay-0);
-              opacity: 0;
 
-              &:hover {
+              &:hover,
+              &:focus-visible {
                 background-color: var(--danger);
                 color: var(--base);
               }
-            }
-
-            &:hover > .pb-delete-branch,
-            > .pb-delete-branch:focus-visible {
-              opacity: 1;
             }
           }
 
@@ -373,6 +381,16 @@ pb-app {
       color: var(--danger);
       border-color: var(--danger);
     }
+  }
+
+  /* Closing only hides something, so it stays neutral; red is for things that delete. */
+  .pb-close:hover {
+    background-color: var(--hover);
+  }
+
+  .pb-delete-branch .pb-icon,
+  .pb-remove .pb-icon {
+    font-size: 0.95rem;
   }
 
   .pb-close,

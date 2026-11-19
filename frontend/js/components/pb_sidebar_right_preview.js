@@ -29,7 +29,7 @@ customElements.define(
           <button type="button" class="pb-checkout" aria-label="Check out this commit" title="Check out this commit">
             ${icon("branch")}
           </button>
-          <button type="button" class="pb-close pb-danger" aria-label="Close preview" title="Close (Esc)">
+          <button type="button" class="pb-close" aria-label="Close preview" title="Close (Esc)">
             ${icon("times")}
           </button>
         </div>

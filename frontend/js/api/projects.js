@@ -83,6 +83,21 @@ export async function deleteBranch({ repo, name, force = false }) {
   return body;
 }
 
+// Delete a branch on its remote (a push with --delete; uses the active SSH identity).
+//   DELETE /api/repos/:repo/remote-branches?name=origin/x -> {}  (errors: { error })
+export async function deleteRemoteBranch({ repo, name }) {
+  if (USE_MOCK) {
+    await delay();
+    const i = (MOCK_REMOTE_BRANCHES[repo] ?? []).indexOf(name);
+    if (i >= 0) MOCK_REMOTE_BRANCHES[repo].splice(i, 1);
+    return {};
+  }
+  const res = await fetch(`/api/repos/${encodeURIComponent(repo)}/remote-branches?${new URLSearchParams({ name })}`, { method: "DELETE" });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `Could not delete the remote branch (${res.status})`);
+  return body;
+}
+
 // Remote-tracking branches ("origin/main"), as last fetched.
 //   GET /api/repos/:repo/remote-branches -> { branches: [{ name }] }
 const MOCK_REMOTE_BRANCHES = {

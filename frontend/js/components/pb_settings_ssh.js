@@ -169,8 +169,8 @@ customElements.define(
                 ? `<span class="pb-badge">Active</span>`
                 : `<button type="button" class="pb-select">Use</button>`
             }
-            <button type="button" class="pb-remove pb-danger" aria-label="Remove ${escapeHtml(i.name)}">
-              ${icon("times")}
+            <button type="button" class="pb-remove pb-danger" aria-label="Delete ${escapeHtml(i.name)}" title="Delete this key from Iqra">
+              ${icon("trash")}
             </button>
           </li>`,
         )

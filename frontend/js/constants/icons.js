@@ -7,6 +7,7 @@
 export const ICONS = {
   "folder-open": "\u{1f4c2}",
   archive: "\u{1f5c3}",
+  trash: "\u{1f5d1}",
   minus: "-",
   plus: "+",
   times: "×",

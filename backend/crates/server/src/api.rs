@@ -31,7 +31,7 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/identities/{id}", delete(remove_identity))
         .route("/repos/{repo}/issues", get(issues))
         .route("/repos/{repo}/branches", get(branches).delete(delete_branch))
-        .route("/repos/{repo}/remote-branches", get(remote_branches))
+        .route("/repos/{repo}/remote-branches", get(remote_branches).delete(delete_remote_branch))
         .route("/repos/{repo}/stage", post(stage))
         .route("/repos/{repo}/unstage", post(unstage))
         .route("/repos/{repo}/push", post(push))
@@ -42,7 +42,7 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/repos/{repo}/checkout", post(checkout))
         .route("/repos/{repo}/status", get(status))
         .route("/repos/{repo}/diff", get(diff))
-        .route("/repos/{repo}/stashes", get(stashes))
+        .route("/repos/{repo}/stashes", get(stashes).delete(drop_stash))
 }
 
 async fn blocking<T: Send + 'static>(
@@ -318,6 +318,31 @@ async fn delete_branch(State(state): Shared, Path(repo): Path<String>, ApiQuery(
         iqra_core::delete_branch(r.path(), &q.name, q.force)
     })
     .await?;
+    Ok(Json(json!({})))
+}
+
+#[derive(Deserialize)]
+struct NameQuery {
+    name: String,
+}
+
+async fn delete_remote_branch(State(state): Shared, Path(repo): Path<String>, ApiQuery(q): ApiQuery<NameQuery>) -> Reply {
+    let key = active_key(&state);
+    blocking(move || {
+        let r = open_repo_blocking(&state, &repo)?;
+        iqra_core::delete_remote_branch(r.path(), &q.name, ssh_of(&key, &state))
+    })
+    .await?;
+    Ok(Json(json!({})))
+}
+
+#[derive(Deserialize)]
+struct IdQuery {
+    id: String,
+}
+
+async fn drop_stash(State(state): Shared, Path(repo): Path<String>, ApiQuery(q): ApiQuery<IdQuery>) -> Reply {
+    blocking(move || iqra_core::stash_drop(open_repo_blocking(&state, &repo)?.path(), &q.id)).await?;
     Ok(Json(json!({})))
 }
 
