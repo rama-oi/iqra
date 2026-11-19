@@ -25,8 +25,8 @@ customElements.define(
     #template = `
       <div class="pb-wrapper">
         <div class="pb-flex-row">
-          <button type="button" class="pb-checkout" aria-label="Check out this commit" title="Check out this commit">
-            ${icon("branch")}
+          <button type="button" class="pb-checkout pb-btn-outline" aria-label="Check out this commit" title="Check out this commit">
+            Checkout Commit
           </button>
           <span class="pb-flex-separator"></span>
           <button type="button" class="pb-close" aria-label="Close preview" title="Close (Esc)">
