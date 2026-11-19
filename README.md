@@ -34,6 +34,7 @@ Commits use your normal git config (`user.name`, `user.email`, signing, hooks).
 | `--data-dir` | `IQRA_DATA_DIR` | `~/.local/share/iqra` (projects, identities, keys) |
 | `--clone-dir` | `IQRA_CLONE_DIR` | `~/Projects` |
 | `--allowed-host` | `IQRA_ALLOWED_HOSTS` | extra host names, if you reach it by a name |
+| (env only) | `IQRA_GITHUB_TOKEN` | optional GitHub token; the Backlog lists the issues of a project's GitHub remote, and private repositories need it |
 
 ## Things to know
 

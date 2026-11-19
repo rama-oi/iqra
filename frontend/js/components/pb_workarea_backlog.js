@@ -46,19 +46,19 @@ customElements.define(
       $count.textContent = "";
 
       try {
-        const issues = await fetchIssues({ repo: data.repository });
+        const { issues, note } = await fetchIssues({ repo: data.repository });
         if (loadId !== this.#loadId) return;
 
         this.#issues = issues;
         list.innerHTML = issues.length
           ? issues.map((issue, i) => this.#renderIssue(issue, i)).join("") +
             `<p class="pb-status pb-no-match" hidden>No issues match.</p>`
-          : `<p class="pb-status">No issues in ${escapeHtml(data.repository)}.</p>`;
+          : `<p class="pb-status">${escapeHtml(note || `No issues in ${data.repository}.`)}</p>`;
         this.#applyFilter();
       } catch (err) {
         if (loadId !== this.#loadId) return;
         console.error(err);
-        list.innerHTML = `<p class="pb-error">Could not load issues.</p>`;
+        list.innerHTML = `<p class="pb-error">${escapeHtml(err.message || "Could not load issues.")}</p>`;
       }
     }
 

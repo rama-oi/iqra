@@ -24,7 +24,7 @@ pub use identities::{Identities, Identity, Profile};
 pub use model::*;
 pub use paths::{display_path, expand_tilde};
 pub use registry::Registry;
-pub use repo::{DiffTarget, Repo};
+pub use repo::{DiffTarget, Repo, github_slug};
 pub use ssh_url::validate_ssh_url;
 
 /// A project name doubles as a folder name when cloning, so keep it boring.

@@ -33,6 +33,8 @@ pub struct AppState {
     /// Fallback ssh config, see `iqra_core::Ssh`.
     pub ssh_config: PathBuf,
     pub profile_lookup: ProfileLookup,
+    /// Base URL of the GitHub API (tests point it at a local server).
+    pub github_api: String,
     pub clone_dir: PathBuf,
     /// Lower-case host names (no port) allowed in the `Host` header.
     pub accepted_hosts: Vec<String>,
@@ -43,6 +45,10 @@ pub fn build_state(config: &Config) -> anyhow::Result<Arc<AppState>> {
 }
 
 pub fn build_state_with(config: &Config, profile_lookup: ProfileLookup) -> anyhow::Result<Arc<AppState>> {
+    build_state_full(config, profile_lookup, github::API.to_string())
+}
+
+pub fn build_state_full(config: &Config, profile_lookup: ProfileLookup, github_api: String) -> anyhow::Result<Arc<AppState>> {
     let (data_dir, clone_dir) = config::ensure_dirs(config)?;
     let registry = Registry::open(data_dir.join("projects.json"))?;
     let identities = Identities::open(&data_dir)?;
@@ -59,6 +65,7 @@ pub fn build_state_with(config: &Config, profile_lookup: ProfileLookup) -> anyho
         identities: Mutex::new(identities),
         ssh_config: iqra_core::write_ssh_config(&data_dir)?,
         profile_lookup,
+        github_api,
         clone_dir,
         accepted_hosts: config.accepted_hosts(),
     }))

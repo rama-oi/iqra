@@ -47,6 +47,48 @@ pub fn fetch_profile(api: &str, login: &str) -> Profile {
     }
 }
 
+/// The issues of `owner/name` (pull requests, which GitHub lists among them, left out),
+/// newest first, in the shape the Backlog view reads. Public repositories need no token;
+/// private ones need `IQRA_GITHUB_TOKEN` on the server.
+pub fn fetch_issues(api: &str, owner: &str, name: &str, token: Option<&str>) -> Result<Vec<Value>, String> {
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_global(Some(Duration::from_secs(10)))
+        .build()
+        .into();
+    let mut req = agent
+        .get(format!("{api}/repos/{owner}/{name}/issues?state=all&per_page=100&sort=created&direction=desc"))
+        .header("User-Agent", "iqra")
+        .header("Accept", "application/vnd.github+json");
+    if let Some(t) = token.filter(|t| !t.is_empty()) {
+        req = req.header("Authorization", format!("Bearer {t}"));
+    }
+    let list: Vec<Value> = match req.call() {
+        Ok(mut res) => res.body_mut().read_json().map_err(|_| "GitHub sent something that is not a list of issues.".to_string())?,
+        Err(ureq::Error::StatusCode(404 | 401 | 403)) => {
+            return Err(format!(
+                "GitHub would not show the issues of {owner}/{name}: the repository is private or the rate limit is used up. For private repositories start Iqra with IQRA_GITHUB_TOKEN set."
+            ));
+        }
+        Err(ureq::Error::StatusCode(code)) => return Err(format!("GitHub answered {code} for the issues of {owner}/{name}.")),
+        Err(_) => return Err("Could not reach GitHub.".to_string()),
+    };
+    Ok(list.iter().filter(|i| i.get("pull_request").is_none()).filter_map(issue_json).collect())
+}
+
+fn issue_json(i: &Value) -> Option<Value> {
+    let text = |v: &Value| v.as_str().map(str::to_string);
+    Some(serde_json::json!({
+        "number": i.get("number")?.as_u64()?,
+        "title": text(i.get("title")?)?,
+        "state": text(i.get("state")?)?,
+        "labels": i.get("labels").and_then(Value::as_array).map(|l| l.iter().filter_map(|x| x.get("name").and_then(text)).collect::<Vec<_>>()).unwrap_or_default(),
+        "author": i.pointer("/user/login").and_then(text),
+        "assignee": i.pointer("/assignee/login").and_then(text),
+        "createdAt": i.get("created_at").and_then(text),
+        "body": i.get("body").and_then(text).unwrap_or_default(),
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

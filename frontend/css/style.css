@@ -1009,10 +1009,123 @@ pb-app {
 
   pb-workarea[data-view="workarea"] > pb-workarea-tree,
   pb-workarea[data-view="diffs"] > pb-workarea-diffs,
-  pb-workarea[data-view="merge"] > pb-workarea-merge,
   pb-workarea[data-view="backlog"] > pb-workarea-backlog,
   pb-workarea[data-view="contributors"] > pb-workarea-contributors {
     display: block;
+  }
+
+  pb-workarea[data-view="merge"] > pb-workarea-merge {
+    display: flex;
+  }
+
+  pb-workarea-merge {
+    height: 100%;
+    display: none;
+    flex-direction: column;
+
+    .pb-table-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-between-inline-items);
+      padding: var(--space-between-blocks);
+      background-color: var(--surface-0);
+      border-block-end: 1px solid var(--border);
+
+      .pb-backlog-title {
+        flex: 1;
+        display: flex;
+        gap: var(--space-between-blocks);
+      }
+    }
+
+    .pb-count,
+    .pb-merge-status {
+      color: var(--overlay-0);
+    }
+
+    .pb-merge-status {
+      padding: var(--space-between-inline-items) var(--space-between-blocks);
+      min-height: 1.5em;
+    }
+
+    .pb-merge-canvas {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+    }
+
+    .pb-merge-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+
+      &.pb-panning {
+        cursor: grabbing;
+      }
+    }
+
+    .pb-merge-node {
+      cursor: pointer;
+      outline: none;
+
+      rect {
+        fill: var(--surface-1);
+        stroke: var(--border);
+        stroke-width: 2;
+      }
+
+      text {
+        fill: var(--text);
+        font-size: 15px;
+        pointer-events: none;
+      }
+
+      .pb-merge-role {
+        fill: var(--accent);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .pb-merge-dot {
+        fill: var(--success);
+      }
+
+      &:hover rect,
+      &:focus-visible rect {
+        stroke: var(--hover);
+      }
+
+      &.pb-from rect {
+        stroke: var(--accent);
+        stroke-width: 3;
+      }
+
+      &.pb-into rect {
+        stroke: var(--success);
+        stroke-width: 3;
+      }
+
+      &.pb-into .pb-merge-role {
+        fill: var(--success);
+      }
+    }
+
+    .pb-merge-line {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 3;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+
+    .pb-merge-arrowhead {
+      fill: var(--accent);
+    }
   }
 
   pb-workarea-backlog,

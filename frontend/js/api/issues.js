@@ -113,9 +113,10 @@ const MOCK_ISSUES = {
 export async function fetchIssues({ repo } = {}) {
   if (USE_MOCK) {
     await new Promise((resolve) => setTimeout(resolve, 150));
-    return structuredClone(MOCK_ISSUES[repo] ?? []);
+    return { issues: structuredClone(MOCK_ISSUES[repo] ?? []), note: null };
   }
   const res = await fetch(`/api/repos/${encodeURIComponent(repo)}/issues`);
-  if (!res.ok) throw new Error(`Failed to load issues (${res.status})`);
-  return (await res.json()).issues;
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `Failed to load issues (${res.status})`);
+  return { issues: body.issues, note: body.note ?? null };
 }

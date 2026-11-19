@@ -23,9 +23,10 @@ customElements.define(
         <button class="pb-btn pb-btn-outline pb-unstage-all" type="button" title="Unstage All files">
           Unstage All
         </button>
-      </div>
 
-      <hr>
+        <hr>
+
+      </div>
 
       <details class="pb-unstaged" open>
         <summary>Unstaged Files <span class="pb-count"></span></summary>

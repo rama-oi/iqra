@@ -554,10 +554,18 @@ async fn remove_identity(State(state): Shared, Path(id): Path<String>) -> Reply 
 
 // ---- issues ---------------------------------------------------------------------------
 
-/// Issues live on a forge (GitHub, ...), not in git, so there is nothing to read from a
-/// repository on disk yet. The Backlog view shows an honest empty list until a forge
-/// integration exists.
+/// Issues live on a forge, not in git. For a project whose remote is on GitHub they are
+/// read from GitHub; any other project answers an empty list with a `note` saying why.
 async fn issues(State(state): Shared, Path(repo): Path<String>) -> Reply {
-    blocking(move || open_repo_blocking(&state, &repo).map(|_| ())).await?;
-    Ok(Json(json!({ "issues": [] })))
+    let api = state.github_api.clone();
+    let slug = blocking(move || open_repo_blocking(&state, &repo).map(|r| r.github_slug())).await?;
+    let Some((owner, name)) = slug else {
+        return Ok(Json(json!({ "issues": [], "note": "This project has no GitHub remote, so there are no issues to show." })));
+    };
+    let token = std::env::var("IQRA_GITHUB_TOKEN").ok();
+    let list = tokio::task::spawn_blocking(move || crate::github::fetch_issues(&api, &owner, &name, token.as_deref()))
+        .await
+        .map_err(|e| ApiError::new(axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(|m| ApiError::new(axum::http::StatusCode::BAD_GATEWAY, m))?;
+    Ok(Json(json!({ "issues": list })))
 }

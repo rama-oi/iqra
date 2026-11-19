@@ -169,6 +169,18 @@ impl Repo {
         Ok(names)
     }
 
+    /// `(owner, name)` of the GitHub repository this project's remote points at, if any.
+    /// `origin` wins; otherwise the first remote that is on GitHub.
+    pub fn github_slug(&self) -> Option<(String, String)> {
+        let remotes = self.inner.remotes().ok()?;
+        let mut names: Vec<&str> = remotes.iter().flatten().flatten().collect();
+        names.sort_by_key(|n| *n != "origin");
+        names
+            .into_iter()
+            .filter_map(|n| self.inner.find_remote(n).ok())
+            .find_map(|r| r.url().ok().and_then(github_slug))
+    }
+
     /// The submodules the project declares in `.gitmodules`.
     pub fn submodules(&self) -> Result<Vec<Submodule>> {
         let mut list: Vec<Submodule> = self
@@ -427,5 +439,50 @@ impl Repo {
                 })
             })
             .collect()
+    }
+}
+
+/// `("owner", "name")` from a GitHub remote URL in any of its spellings:
+/// `git@github.com:o/n.git`, `ssh://git@github.com/o/n`, `https://github.com/o/n.git`.
+pub fn github_slug(url: &str) -> Option<(String, String)> {
+    let url = url.trim();
+    let rest = if let Some(r) = url.strip_prefix("git@github.com:") {
+        r
+    } else {
+        let after = url.split_once("://")?.1;
+        let after = after.rsplit_once('@').map_or(after, |(_, h)| h);
+        let after = after.strip_prefix("github.com")?;
+        // an optional port (ssh://git@github.com:22/o/n)
+        let after = after.trim_start_matches(|c: char| c == ':' || c.is_ascii_digit());
+        after.strip_prefix('/')?
+    };
+    let rest = rest.trim_end_matches('/');
+    let rest = rest.strip_suffix(".git").unwrap_or(rest);
+    let (owner, name) = rest.split_once('/')?;
+    let ok = |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c));
+    (ok(owner) && ok(name)).then(|| (owner.to_string(), name.to_string()))
+}
+
+#[cfg(test)]
+mod github_slug_tests {
+    use super::github_slug;
+
+    #[test]
+    fn every_spelling_of_a_github_remote_is_understood() {
+        let want = Some(("rama-oi".to_string(), "iqra".to_string()));
+        for url in [
+            "git@github.com:rama-oi/iqra.git",
+            "git@github.com:rama-oi/iqra",
+            "ssh://git@github.com/rama-oi/iqra.git",
+            "ssh://git@github.com:22/rama-oi/iqra.git",
+            "https://github.com/rama-oi/iqra.git",
+            "https://github.com/rama-oi/iqra/",
+            "https://user:token@github.com/rama-oi/iqra",
+        ] {
+            assert_eq!(github_slug(url), want, "{url}");
+        }
+        for url in ["git@gitlab.com:o/n.git", "/srv/git/iqra.git", "https://github.com/onlyowner", "https://github.com.evil.io/o/n", "git@github.com:o/n/extra"] {
+            assert_eq!(github_slug(url), None, "{url}");
+        }
     }
 }

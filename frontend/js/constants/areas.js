@@ -4,4 +4,5 @@ export default new Enum({
   workarea: "Work Area",
   backlog: "Backlog",
   contributors: "Contributors",
+  merge: "Merge Graph",
 });

@@ -27,6 +27,10 @@ fn env() -> Env {
 }
 
 fn env_with(lookup: iqra_server::ProfileLookup) -> Env {
+    env_with_api(lookup, "http://127.0.0.1:9".into())
+}
+
+fn env_with_api(lookup: iqra_server::ProfileLookup, github_api: String) -> Env {
     let repo = tempfile::tempdir().unwrap();
     let r = repo.path();
     git(r, &["init", "-q", "-b", "main"]);
@@ -47,7 +51,7 @@ fn env_with(lookup: iqra_server::ProfileLookup) -> Env {
         clone_dir: Some(clones.path().into()),
         allowed_hosts: vec!["git.lan".into()],
     };
-    Env { app: router(iqra_server::build_state_with(&config, lookup).unwrap()), repo, _data: data, _clones: clones }
+    Env { app: router(iqra_server::build_state_full(&config, lookup, github_api).unwrap()), repo, _data: data, _clones: clones }
 }
 
 async fn call(app: &Router, method: &str, uri: &str, headers: &[(&str, &str)], body: Option<Value>) -> (StatusCode, header_map::H, Value, String) {
@@ -669,4 +673,65 @@ async fn a_remote_branch_is_checked_out_as_a_tracking_branch() {
     assert_eq!(s, StatusCode::BAD_REQUEST);
     let (s, ..) = call(&e.app, "POST", "/api/repos/demo/checkout", &[], Some(json!({ "remote": "origin/HEAD" }))).await;
     assert_eq!(s, StatusCode::BAD_REQUEST);
+}
+
+/// A one-request fake of the GitHub API: answers `status` with `body`, and hands back
+/// the request line it saw.
+fn fake_github(status: &str, body: &str) -> (String, std::sync::mpsc::Receiver<String>) {
+    use std::io::{Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let (tx, rx) = std::sync::mpsc::channel();
+    let reply = format!("HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+    std::thread::spawn(move || {
+        if let Ok((mut c, _)) = listener.accept() {
+            let mut buf = [0u8; 4096];
+            let n = c.read(&mut buf).unwrap_or(0);
+            let _ = tx.send(String::from_utf8_lossy(&buf[..n]).lines().next().unwrap_or("").to_string());
+            let _ = c.write_all(reply.as_bytes());
+        }
+    });
+    (format!("http://{addr}"), rx)
+}
+
+#[tokio::test]
+async fn the_backlog_lists_the_github_issues_of_the_remote_without_pull_requests() {
+    let body = r#"[
+      {"number":7,"title":"Crash on start","state":"open","labels":[{"name":"bug"}],"user":{"login":"ana"},"assignee":{"login":"bo"},"created_at":"2026-11-01T10:00:00Z","body":"it dies"},
+      {"number":6,"title":"A pull request","state":"open","labels":[],"user":{"login":"bo"},"assignee":null,"created_at":"2026-10-30T10:00:00Z","body":null,"pull_request":{"url":"x"}},
+      {"number":5,"title":"Old","state":"closed","labels":[],"user":{"login":"ana"},"assignee":null,"created_at":"2026-10-01T10:00:00Z","body":null}
+    ]"#;
+    let (api, seen) = fake_github("200 OK", body);
+    let e = env_with_api(Box::new(|_| None), api);
+    open_demo(&e).await;
+
+    // no remote on GitHub: an empty list and the reason
+    let (s, j) = get(&e.app, "/api/repos/demo/issues").await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(j["issues"], json!([]));
+    assert!(j["note"].as_str().unwrap().contains("no GitHub remote"));
+
+    git(e.repo.path(), &["remote", "add", "origin", "git@github.com:rama-oi/iqra.git"]);
+    let (s, j) = get(&e.app, "/api/repos/demo/issues").await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    let issues = j["issues"].as_array().unwrap();
+    assert_eq!(issues.len(), 2, "pull requests are not issues: {j}");
+    assert_eq!(issues[0]["number"], 7);
+    assert_eq!(issues[0]["labels"], json!(["bug"]));
+    assert_eq!(issues[0]["author"], "ana");
+    assert_eq!(issues[0]["assignee"], "bo");
+    assert_eq!(issues[0]["createdAt"], "2026-11-01T10:00:00Z");
+    assert_eq!(issues[1]["body"], "");
+    assert!(seen.recv().unwrap().starts_with("GET /repos/rama-oi/iqra/issues?"));
+}
+
+#[tokio::test]
+async fn a_private_repository_says_why_its_issues_are_missing() {
+    let (api, _) = fake_github("404 Not Found", "{}");
+    let e = env_with_api(Box::new(|_| None), api);
+    open_demo(&e).await;
+    git(e.repo.path(), &["remote", "add", "origin", "https://github.com/rama-oi/secret.git"]);
+    let (s, j) = get(&e.app, "/api/repos/demo/issues").await;
+    assert_eq!(s, StatusCode::BAD_GATEWAY);
+    assert!(j["error"].as_str().unwrap().contains("IQRA_GITHUB_TOKEN"), "{j}");
 }
