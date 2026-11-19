@@ -61,6 +61,7 @@ customElements.define(
 
     update() {
       this.#html.$label.textContent = this.label;
+      this.#html.$label.title = this.label; // the whole name, when it is cut short
     }
   },
 );

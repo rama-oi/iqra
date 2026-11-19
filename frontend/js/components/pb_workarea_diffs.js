@@ -2,6 +2,7 @@ import { getPrefix, escapeHtml } from "../lib/helpers.js";
 import { fetchDiff } from "../api/changes.js";
 import { parseUnifiedDiff } from "../lib/diff.js";
 import data, { setFile } from "../api/data.js";
+import { load, save } from "../store/storage.js";
 
 const STATUS = { A: "added", M: "modified", D: "deleted" };
 
@@ -12,6 +13,7 @@ customElements.define(
   class extends HTMLElement {
     #initialized = false;
     #loadId = 0;
+    #applyWrap = () => {};
 
     #template = `
       <section class="pb-table-header">
@@ -19,6 +21,7 @@ customElements.define(
           <span class="pb-file-status"></span>
           <span class="pb-diff-path"></span>
           <span class="pb-diff-where"></span>
+          <button type="button" class="pb-btn pb-btn-outline pb-diff-wrap" aria-pressed="false" title="Break long lines instead of scrolling sideways">wrap</button>
           <button type="button" class="pb-btn pb-btn-outline pb-diff-close">close</button>
         </div>
       </section>
@@ -31,6 +34,20 @@ customElements.define(
       this.innerHTML = this.#template;
 
       this.querySelector(".pb-diff-close").addEventListener("click", () => setFile(null));
+
+      // Long lines scroll sideways by default; "wrap" breaks them instead, and is remembered.
+      const $wrap = this.querySelector(".pb-diff-wrap");
+      const applyWrap = (wrap) => {
+        $wrap.setAttribute("aria-pressed", String(wrap));
+        this.querySelector(".pb-diff").classList.toggle("pb-wrap", wrap);
+      };
+      this.#applyWrap = applyWrap;
+      applyWrap(load("diffWrap", false, (v) => typeof v === "boolean"));
+      $wrap.addEventListener("click", () => {
+        const wrap = $wrap.getAttribute("aria-pressed") !== "true";
+        save("diffWrap", wrap);
+        applyWrap(wrap);
+      });
       document.addEventListener("pb-file-select", () => this.#load());
       this.#load();
     }
@@ -74,7 +91,7 @@ customElements.define(
       if (!hunks.length) {
         return `<p class="pb-status">No changes in this ${escapeHtml(STATUS[diff.status] ?? "")} file.</p>`;
       }
-      return hunks
+      return `<div class="pb-diff-rows">${hunks
         .map(
           (hunk) => `
           <div class="pb-diff-hunk">${escapeHtml(hunk.header)}</div>
@@ -90,7 +107,7 @@ customElements.define(
             )
             .join("")}`,
         )
-        .join("");
+        .join("")}</div>`;
     }
   },
 );

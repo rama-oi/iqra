@@ -542,3 +542,40 @@ async fn an_unrecognised_key_is_saved_and_sync_works_once_github_knows_it() {
     let (s, ..) = call(&e.app, "POST", "/api/identities/id-99/refresh", &[], None).await;
     assert_eq!(s, StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn branches_are_deleted_except_the_checked_out_one_and_unmerged_ones_need_force() {
+    let e = env();
+    open_demo(&e).await;
+    git(e.repo.path(), &["branch", "merged"]);
+    git(e.repo.path(), &["checkout", "-q", "-b", "wip"]);
+    std::fs::write(e.repo.path().join("w.txt"), "w").unwrap();
+    git(e.repo.path(), &["add", "w.txt"]);
+    git(e.repo.path(), &["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "wip work"]);
+    git(e.repo.path(), &["checkout", "-q", "main"]);
+
+    let names = |j: &Value| j["branches"].as_array().unwrap().iter().map(|b| b["name"].as_str().unwrap().to_string()).collect::<Vec<_>>();
+
+    let (s, _, j, _) = call(&e.app, "DELETE", "/api/repos/demo/branches?name=merged", &[], None).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert!(!names(&get(&e.app, "/api/repos/demo/branches").await.1).contains(&"merged".to_string()));
+
+    // the branch you are on stays
+    let (s, _, j, _) = call(&e.app, "DELETE", "/api/repos/demo/branches?name=main&force=true", &[], None).await;
+    assert_eq!(s, StatusCode::BAD_REQUEST, "{j}");
+    assert!(j["error"].as_str().unwrap().contains("checked out"));
+
+    // unmerged work needs force; git's own message says why
+    let (s, _, j, _) = call(&e.app, "DELETE", "/api/repos/demo/branches?name=wip", &[], None).await;
+    assert_ne!(s, StatusCode::OK);
+    assert!(j["error"].as_str().unwrap().contains("not fully merged"), "{j}");
+    let (s, ..) = call(&e.app, "DELETE", "/api/repos/demo/branches?name=wip&force=true", &[], None).await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(names(&get(&e.app, "/api/repos/demo/branches").await.1), vec!["main", "feature"]);
+
+    // option-looking and missing names are refused
+    let (s, ..) = call(&e.app, "DELETE", "/api/repos/demo/branches?name=--force", &[], None).await;
+    assert_eq!(s, StatusCode::BAD_REQUEST);
+    let (s, ..) = call(&e.app, "DELETE", "/api/repos/demo/branches?name=ghost", &[], None).await;
+    assert_ne!(s, StatusCode::OK);
+}

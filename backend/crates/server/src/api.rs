@@ -30,7 +30,7 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/identities/{id}/refresh", post(refresh_identity))
         .route("/identities/{id}", delete(remove_identity))
         .route("/repos/{repo}/issues", get(issues))
-        .route("/repos/{repo}/branches", get(branches))
+        .route("/repos/{repo}/branches", get(branches).delete(delete_branch))
         .route("/repos/{repo}/remote-branches", get(remote_branches))
         .route("/repos/{repo}/stage", post(stage))
         .route("/repos/{repo}/unstage", post(unstage))
@@ -300,6 +300,25 @@ async fn checkout(State(state): Shared, Path(repo): Path<String>, ApiJson(body):
     })
     .await?;
     Ok(Json(json!({ "currentBranch": current })))
+}
+
+#[derive(Deserialize)]
+struct DeleteBranchQuery {
+    name: String,
+    #[serde(default)]
+    force: bool,
+}
+
+async fn delete_branch(State(state): Shared, Path(repo): Path<String>, ApiQuery(q): ApiQuery<DeleteBranchQuery>) -> Reply {
+    blocking(move || {
+        let r = open_repo_blocking(&state, &repo)?;
+        if r.head_branch().as_deref() == Some(q.name.trim()) {
+            return Err(iqra_core::Error::Invalid("That branch is checked out. Switch to another one first.".into()));
+        }
+        iqra_core::delete_branch(r.path(), &q.name, q.force)
+    })
+    .await?;
+    Ok(Json(json!({})))
 }
 
 async fn remote_branches(State(state): Shared, Path(repo): Path<String>) -> Reply {

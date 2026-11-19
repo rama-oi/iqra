@@ -66,6 +66,23 @@ export async function fetchBranches(repo) {
   return (await res.json()).branches;
 }
 
+// Delete a local branch. Git refuses unmerged work unless `force`; the error says so.
+//   DELETE /api/repos/:repo/branches?name=&force=1 -> {}  (errors: { error })
+export async function deleteBranch({ repo, name, force = false }) {
+  if (USE_MOCK) {
+    await delay();
+    const names = MOCK_BRANCHES[repo];
+    if (names) MOCK_BRANCHES[repo] = names.filter((n) => n !== name);
+    return {};
+  }
+  const params = new URLSearchParams({ name });
+  if (force) params.set("force", "true");
+  const res = await fetch(`/api/repos/${encodeURIComponent(repo)}/branches?${params}`, { method: "DELETE" });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `Could not delete the branch (${res.status})`);
+  return body;
+}
+
 // Remote-tracking branches ("origin/main"), as last fetched.
 //   GET /api/repos/:repo/remote-branches -> { branches: [{ name }] }
 const MOCK_REMOTE_BRANCHES = {

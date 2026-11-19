@@ -230,6 +230,20 @@ pub fn checkout(repo: &Path, target: &str, detach: bool) -> Result<()> {
     run(cmd)
 }
 
+/// Deletes the local branch `name`. Without `force` git refuses a branch whose commits
+/// are not merged yet (its message says so); with `force` the branch goes anyway. The
+/// checked-out branch is never deleted.
+pub fn delete_branch(repo: &Path, name: &str, force: bool) -> Result<()> {
+    let name = name.trim();
+    if name.is_empty() || name.starts_with('-') || name.chars().any(|c| c.is_control()) {
+        return Err(Error::Invalid("That is not a branch name.".into()));
+    }
+    let mut cmd = Command::new("git");
+    cmd.arg("-C").arg(repo).args(["branch", if force { "-D" } else { "-d" }, "--"]);
+    cmd.arg::<&OsStr>(name.as_ref());
+    run(cmd)
+}
+
 /// A path from the browser goes to git after `--`, as a literal name (no globbing).
 fn check_paths(paths: &[String]) -> Result<()> {
     if paths.is_empty() || paths.iter().any(|p| p.is_empty() || p.contains('\0')) {

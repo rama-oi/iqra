@@ -178,6 +178,39 @@ pb-app {
             }
           }
 
+          &.pb-branch {
+            display: flex;
+            align-items: stretch;
+
+            > button[data-branch] {
+              flex: 1;
+              min-width: 0;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+
+            > .pb-delete-branch {
+              flex: none;
+              width: auto;
+              padding-inline: var(--space-between-blocks);
+              justify-content: center;
+              border-inline-start: 0;
+              color: var(--overlay-0);
+              opacity: 0;
+
+              &:hover {
+                background-color: var(--danger);
+                color: var(--base);
+              }
+            }
+
+            &:hover > .pb-delete-branch,
+            > .pb-delete-branch:focus-visible {
+              opacity: 1;
+            }
+          }
+
           &.pb-empty {
             padding: var(--space-between-blocks);
             color: var(--overlay-0);
@@ -386,6 +419,32 @@ pb-app {
       &.pb-selected {
         background-color: var(--surface-1);
       }
+
+      /* Where HEAD is (the checked-out commit). Apart from the selection above: a bar on
+         the edge, a tint, and a ring around the node, so it still shows on a selected row. */
+      &.pb-current {
+        box-shadow: inset 3px 0 0 var(--accent);
+        background-color: color-mix(in srgb, var(--accent) 14%, transparent);
+
+        &.pb-selected {
+          background-color: color-mix(in srgb, var(--accent) 24%, var(--surface-1));
+        }
+
+        .pb-node {
+          outline: 2px solid var(--accent);
+          outline-offset: 1px;
+          border-radius: 50%;
+        }
+
+        .pb-node-merge {
+          r: 6.5px;
+          stroke: var(--accent);
+          stroke-width: 2px;
+        }
+      }
+
+      /* keeps a scrolled-to row clear of the sticky header */
+      scroll-margin-block: calc(var(--row-height) * 2);
     }
 
     .pb-column-branch {
@@ -499,6 +558,15 @@ pb-app {
 
     display: grid;
     grid-template-rows: repeat(2, minmax(0, 1fr));
+    /* One column no wider than the window. Left as `auto` it grows to fit every tab, which
+       pushes the menu off-screen and stretches the toolbar instead of letting the tabs scroll. */
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+
+    pb-tabbar,
+    pb-toolbar {
+      min-width: 0;
+    }
 
     pb-tabbar {
       background-color: var(--surface-0);
@@ -513,7 +581,29 @@ pb-app {
         min-width: 0;
         overflow-x: auto;
         overflow-y: hidden;
-        scrollbar-width: thin;
+        /* the arrows scroll it, so no scrollbar is needed */
+        scrollbar-width: none;
+      }
+
+      .pb-tabs-scroll {
+        flex: none;
+        height: 100%;
+        padding-inline: 0.6rem;
+        background-color: var(--surface-0);
+        border-inline-end: 1px solid var(--border);
+        cursor: pointer;
+
+        &[hidden] {
+          display: none;
+        }
+        &:hover:not(:disabled) {
+          background-color: var(--accent);
+          color: var(--base);
+        }
+        &:disabled {
+          opacity: 0.35;
+          cursor: default;
+        }
       }
 
       pb-tab.pb-active {
@@ -527,6 +617,20 @@ pb-app {
         height: 100%;
         .pb-label {
           flex-grow: 1;
+        }
+      }
+
+      /* A tab keeps its size and a long name is cut with an ellipsis, rather than the tab
+         shrinking until the name wraps over two lines. */
+      pb-tab {
+        flex: none;
+        max-width: 15rem;
+
+        .pb-label {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
       }
 
@@ -604,15 +708,26 @@ pb-app {
     min-width: 0;
     min-height: 0;
 
+    /* The sidebar itself never scrolls: only its content does. The collapse bar is a
+       sibling of the content, so it always spans the full height of the panel and
+       stays put while the content scrolls. */
     pb-sidebar-right,
     pb-sidebar-left {
       display: flex;
+      overflow: hidden;
+
       .pb-panel-content {
-        flex-grow: 1;
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 0;
+        overflow: auto;
       }
     }
 
     pb-collapse-btn {
+      flex: none;
+      align-self: stretch;
+
       button {
         width: var(--collapse-btn-width);
         padding: 0;
@@ -696,6 +811,9 @@ pb-app {
     pb-sidebar-right {
       min-width: 0;
       min-height: 0;
+    }
+
+    pb-workarea {
       overflow: auto;
     }
   }
@@ -1212,11 +1330,19 @@ pb-app {
   }
 
   /* --- workarea: diff ------------------------------------------------- */
+  /* A column: the title stays, the body is the one thing that scrolls (both ways), so the
+     horizontal scrollbar is always at the bottom of the panel and not at the end of a
+     long diff. Same strength as the rule that shows the view, or that one wins. */
+  pb-workarea[data-view="diffs"] > pb-workarea-diffs {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+
   pb-workarea-diffs {
     .pb-table-header {
-      position: sticky;
-      top: 0;
-      z-index: 1;
+      flex: none;
       background-color: var(--surface-0);
     }
 
@@ -1238,8 +1364,14 @@ pb-app {
       color: var(--overlay-0);
     }
 
-    .pb-diff-close {
+    .pb-diff-close,
+    .pb-diff-wrap {
       height: auto;
+    }
+
+    .pb-diff-wrap[aria-pressed="true"] {
+      background-color: var(--accent);
+      color: var(--base);
     }
 
     .pb-status,
@@ -1251,9 +1383,18 @@ pb-app {
     }
 
     .pb-diff {
+      flex: 1 1 auto;
+      min-height: 0;
       font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
       font-size: 0.8em;
-      overflow-x: auto;
+      overflow: auto;
+    }
+
+    /* every row is as wide as the longest line, so backgrounds do not stop at the edge
+       of the visible area when scrolled sideways */
+    .pb-diff-rows {
+      width: max-content;
+      min-width: 100%;
     }
 
     .pb-diff-hunk {
@@ -1266,7 +1407,6 @@ pb-app {
       display: grid;
       grid-template-columns: 4ch 4ch 2ch minmax(0, 1fr);
       gap: var(--space-between-inline-items);
-      min-width: max-content;
 
       &.pb-add {
         background-color: color-mix(in srgb, var(--success) 22%, transparent);
@@ -1292,6 +1432,17 @@ pb-app {
 
     .pb-diff-text {
       white-space: pre;
+    }
+
+    /* "Wrap": long lines break instead of scrolling sideways (also inside one long word) */
+    .pb-diff.pb-wrap {
+      .pb-diff-rows {
+        width: auto;
+      }
+      .pb-diff-text {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
     }
   }
   /* --- file picker: a field and a button, for files and for folders ------- */

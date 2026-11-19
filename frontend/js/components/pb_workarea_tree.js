@@ -15,6 +15,7 @@ customElements.define(
   class extends HTMLElement {
     #initialized = false;
     #loadId = 0;
+    #revealHead = false;
     #commits = new Map();
     #changes = null; // number of changed files, null when unknown
 
@@ -50,13 +51,19 @@ customElements.define(
       document.addEventListener("pb-commit-select", () => this.#markSelected());
       document.addEventListener("pb-filter-change", () => this.#applyFilter());
 
-      for (const type of ["pb-repository-change", "pb-branch-change", "pb-history-change"]) {
-        document.addEventListener(type, () => this.#load());
+      // After a checkout (or opening a project) the graph also scrolls to where HEAD is;
+      // after a pull or a commit it stays where the person was looking.
+      for (const type of ["pb-repository-change", "pb-branch-change"]) {
+        document.addEventListener(type, () => this.#load({ revealHead: true }));
       }
-      this.#load();
+      document.addEventListener("pb-history-change", () => this.#load());
+      this.#load({ revealHead: true });
     }
 
-    async #load() {
+    async #load({ revealHead = false } = {}) {
+      // Remembered until a load completes: a checkout fires several events, and the later
+      // load supersedes the first, which must not lose the request.
+      this.#revealHead ||= revealHead;
       const loadId = ++this.#loadId;
       const body = this.querySelector(".pb-table-body");
       if (!data.repository) return;
@@ -83,6 +90,11 @@ customElements.define(
         body.innerHTML = rows.map((row) => this.#renderRow(row, laneCount)).join("");
         this.#markSelected();
         this.#applyFilter();
+        if (this.#revealHead) {
+          this.#revealHead = false;
+          // scrolls the work area itself, never the whole page
+          body.querySelector(".pb-row.pb-current")?.scrollIntoView({ block: "nearest" });
+        }
       } catch (err) {
         if (loadId !== this.#loadId) return;
         console.error(err);
@@ -137,8 +149,10 @@ customElements.define(
         )
         .join("");
 
+      // "You are here": the commit HEAD is on, whether through a branch or detached
+      const current = commit.refs.some((r) => r.isHead);
       return `
-      <button type="button" class="pb-row" data-hash="${escapeHtml(commit.hash)}">
+      <button type="button" class="pb-row${current ? " pb-current" : ""}"${current ? ' data-current aria-current="true"' : ""} data-hash="${escapeHtml(commit.hash)}">
         <div class="pb-column-branch">${refs}</div>
         <div class="pb-column-graph">
           ${renderGraphRow(row, laneCount)}

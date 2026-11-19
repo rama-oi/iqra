@@ -1,6 +1,7 @@
 import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
 import data, { setBranch } from "../api/data.js";
-import { fetchBranches, fetchRemoteBranches } from "../api/projects.js";
+import { fetchBranches, fetchRemoteBranches, deleteBranch } from "../api/projects.js";
+import { toast } from "../lib/toast.js";
 import { fetchStashes } from "../api/stashes.js";
 
 const ICON_BRANCH = icon("branch");
@@ -56,6 +57,8 @@ customElements.define(
         this.querySelector(".pb-local .pb-content").addEventListener("click", (e) => {
           const btn = e.target.closest("button[data-branch]");
           if (btn) setBranch(btn.dataset.branch, { detached: "detached" in btn.dataset });
+          const del = e.target.closest("button[data-delete]");
+          if (del) this.#delete(del.dataset.delete);
         });
         for (const type of ["pb-repository-change", "pb-branch-change"]) {
           document.addEventListener(type, () => this.#render());
@@ -84,16 +87,40 @@ customElements.define(
       this.#render();
     }
 
+    async #delete(name) {
+      const repo = data.repository;
+      if (!repo || !confirm(`Delete the branch "${name}"?`)) return;
+      try {
+        try {
+          await deleteBranch({ repo, name });
+        } catch (err) {
+          if (!/not fully merged/i.test(err.message)) throw err;
+          if (!confirm(`"${name}" has commits that are not merged anywhere else.\nDelete it anyway? They may be lost.`)) return;
+          await deleteBranch({ repo, name, force: true });
+        }
+        toast(`Deleted ${name}.`);
+        document.dispatchEvent(new CustomEvent("pb-history-change"));
+      } catch (err) {
+        toast(err.message || "Could not delete the branch.", { error: true });
+      }
+    }
+
     #render() {
       if (this.#repository !== data.repository) {
         this.#repository = data.repository;
         return this.#load();
       }
       this.querySelector(".pb-local .pb-content").innerHTML = this.#branches
-        .map(
-          (b) =>
-            `<li><button type="button" data-branch="${escapeHtml(b.name)}"${b.isDetached ? ' data-detached title="Detached HEAD: on this commit, not on a branch"' : ""}${b.name === data.branch ? ' class="pb-active" aria-current="true"' : ""}>${ICON_BRANCH}${escapeHtml(b.name)}</button></li>`,
-        )
+        .map((b) => {
+          const name = escapeHtml(b.name);
+          const active = b.name === data.branch;
+          // the delete button is a sibling of the switch button, never inside it
+          const del =
+            active || b.isDetached
+              ? ""
+              : `<button type="button" class="pb-delete-branch pb-danger" data-delete="${name}" title="Delete branch ${name}" aria-label="Delete branch ${name}">${icon("times")}</button>`;
+          return `<li class="pb-branch"><button type="button" data-branch="${name}"${b.isDetached ? ' data-detached title="Detached HEAD: on this commit, not on a branch"' : ""}${active ? ' class="pb-active" aria-current="true"' : ""}>${ICON_BRANCH}${name}</button>${del}</li>`;
+        })
         .join("");
 
       this.querySelector(".pb-remote .pb-content").innerHTML = this.#remotes.length
