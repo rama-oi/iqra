@@ -1,7 +1,3 @@
-// Turns the text of a unified diff (what `git diff` prints) into hunks of lines.
-//   hunk: { header, lines: [{ type: "add" | "del" | "ctx" | "note", oldNo, newNo, text }] }
-// Everything before the first "@@" (diff --git, index, ---, +++) is skipped; the
-// file name and status come from the API, not from the patch.
 const HUNK = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
 
 export function parseUnifiedDiff(patch) {
@@ -32,8 +28,13 @@ export function parseUnifiedDiff(patch) {
       case " ":
         hunk.lines.push({ type: "ctx", oldNo: oldNo++, newNo: newNo++, text });
         break;
-      case "\\": // "\ No newline at end of file"
-        hunk.lines.push({ type: "note", oldNo: null, newNo: null, text: line.slice(2) });
+      case "\\":
+        hunk.lines.push({
+          type: "note",
+          oldNo: null,
+          newNo: null,
+          text: line.slice(2),
+        });
         break;
     }
   }

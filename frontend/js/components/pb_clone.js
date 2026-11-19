@@ -4,8 +4,6 @@ import "./pb_clone_open.js";
 
 const TITLES = { url: "Clone a repository", open: "Open a repository" };
 
-// The dialog shell, laid out like the settings dialog: tabs on the left, one
-// component per tab. Clone = a remote (always over SSH), Open = a local folder.
 customElements.define(
   getPrefix("clone"),
   class extends HTMLElement {
@@ -48,12 +46,16 @@ customElements.define(
       const $dialog = this.querySelector("dialog");
       this.#html = { $dialog, $title: this.querySelector("header h2") };
 
-      document.addEventListener("pb-open-clone", (e) => this.open(e.detail?.tab));
+      document.addEventListener("pb-open-clone", (e) =>
+        this.open(e.detail?.tab),
+      );
       $dialog.addEventListener("click", (e) => this.#onClick(e));
 
-      // A running clone/open must not be abandoned: no closing, no switching tab.
       this.addEventListener("pb-clone-busy", (e) => (this.#busy = e.detail));
-      $dialog.addEventListener("cancel", (e) => this.#busy && e.preventDefault());
+      $dialog.addEventListener(
+        "cancel",
+        (e) => this.#busy && e.preventDefault(),
+      );
       this.addEventListener("pb-clone-done", () => $dialog.close());
     }
 
@@ -79,7 +81,8 @@ customElements.define(
 
     #focusInput() {
       const { $dialog } = this.#html;
-      const tab = $dialog.dataset.tab === "open" ? "pb-clone-open" : "pb-clone-url";
+      const tab =
+        $dialog.dataset.tab === "open" ? "pb-clone-open" : "pb-clone-url";
       this.querySelector(`${tab} input`)?.focus();
     }
 

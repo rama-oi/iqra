@@ -1,6 +1,11 @@
 import { getPrefix, escapeHtml } from "../lib/helpers.js";
 import AREAS from "../constants/areas.js";
-import data, { openProject, setArea, setBranch, setFilter } from "../api/data.js";
+import data, {
+  openProject,
+  setArea,
+  setBranch,
+  setFilter,
+} from "../api/data.js";
 import { fetchBranches, fetchProjects } from "../api/projects.js";
 import { pickOne } from "./pb_picker.js";
 
@@ -42,7 +47,6 @@ customElements.define(
 
       const { $area, $areaMenu, $repository, $branch, $search } = this.#html;
 
-      // Open the menu right under the button that opened it.
       $areaMenu.addEventListener("beforetoggle", (e) => {
         if (e.newState !== "open") return;
         const rect = $area.getBoundingClientRect();
@@ -60,7 +64,11 @@ customElements.define(
       $search.addEventListener("input", () => setFilter($search.value));
       document.addEventListener("pb-filter-change", () => this.#render());
 
-      for (const type of ["pb-area-change", "pb-repository-change", "pb-branch-change"]) {
+      for (const type of [
+        "pb-area-change",
+        "pb-repository-change",
+        "pb-branch-change",
+      ]) {
         document.addEventListener(type, () => this.#render());
       }
       this.#render();
@@ -72,9 +80,11 @@ customElements.define(
       $area.textContent = AREAS.get(data.area);
       $repository.textContent = data.repository ?? "No project";
       $branch.textContent = data.branch ?? "-";
-      $branch.title = data.detached ? "Detached HEAD: on this commit, not on a branch" : "Switch branch";
+      $branch.title = data.detached
+        ? "Detached HEAD: on this commit, not on a branch"
+        : "Switch branch";
       $branch.disabled = !data.repository;
-      // no project, no branch: only "Work Area / No project" is left
+
       this.toggleAttribute("data-empty", !data.repository);
       $search.disabled = !data.repository;
 
@@ -96,7 +106,11 @@ customElements.define(
         title: "Switch project",
         current: data.repository,
         items: projects.then((list) =>
-          list.map((p) => ({ id: p.name, label: p.name, description: p.description })),
+          list.map((p) => ({
+            id: p.name,
+            label: p.name,
+            description: p.description,
+          })),
         ),
       });
       if (name === null) return;
@@ -115,7 +129,11 @@ customElements.define(
           list.map((b) => ({
             id: b.name,
             label: b.name,
-            description: b.isDetached ? "detached HEAD" : b.isDefault ? "current" : "",
+            description: b.isDetached
+              ? "detached HEAD"
+              : b.isDefault
+                ? "current"
+                : "",
           })),
         ),
       });

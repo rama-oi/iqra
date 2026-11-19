@@ -1,24 +1,7 @@
-// An identity = a name + the SSH key used for git operations.
-//
-// Backend contract (every call answers with the full, updated list):
-//   GET    /api/identities                 -> { identities: [...] }
-//   POST   /api/identities   (multipart: key, name?)  -> { identities: [...] }
-//          name is optional: left out, the identity is named after the GitHub account
-//          the key belongs to (found with `ssh -T git@github.com`)
-//   POST   /api/identities/:id/activate    -> { identities: [...] }
-//   POST   /api/identities/:id/refresh     -> { identities: [...] }  ("sync with GitHub")
-//   DELETE /api/identities/:id             -> { identities: [...] }
-//
-// identity: { id, name, avatarUrl | null, githubLogin | null, keyName, publicKey | null, isActive }
-// Errors answer { error: "human readable text" }, which becomes the Error's message.
-// The private key is only ever sent to the backend, never kept in the browser.
-
 import MOCK from "./config.js";
 const USE_MOCK = MOCK.identities;
 const BASE = "/api/identities";
 
-// Until the backend stores identities, the mock keeps them in localStorage so they
-// survive a refresh. Only name and key file name go there: the key itself never does.
 const STORAGE_KEY = "pb-mock-identities";
 const SEED = [
   { id: "id-1", name: "Fikret", avatarUrl: null, keyName: "id_ed25519", publicKey: null, isActive: true },
@@ -30,7 +13,7 @@ function loadMock() {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (Array.isArray(saved)) return saved;
   } catch {
-    // storage unavailable or corrupt: start from the sample identities
+  
   }
   return structuredClone(SEED);
 }
@@ -39,7 +22,7 @@ function saveMock() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(mockStore));
   } catch {
-    // the list then only lives until the next refresh
+  
   }
 }
 

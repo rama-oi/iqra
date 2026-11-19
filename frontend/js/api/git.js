@@ -1,18 +1,10 @@
-// The git actions of a project: stage, unstage, stash, pop, pull and push.
-//
-// Backend contract (every call answers {} or { error: "human readable text" }):
-//   POST /api/repos/:repo/stage          { paths: [path] }   add files to the next commit
-//   POST /api/repos/:repo/unstage        { paths: [path] }   take them out again
-//   POST /api/repos/:repo/stashes/push   { message? }        set the changes aside (new files too)
-//   POST /api/repos/:repo/stashes/pop                         bring the newest stash back
-//   POST /api/repos/:repo/pull                                fast-forward only, never merges
-//   POST /api/repos/:repo/push                                first push sets the upstream on origin
-//
-// The sample data of changes.js and stashes.js has to move together (a stash empties the
-// changes), so these follow the `changes` flag.
-
 import MOCK from "./config.js";
-import { mockStage, mockUnstage, mockTakeChanges, mockGiveChanges } from "./changes.js";
+import {
+  mockStage,
+  mockUnstage,
+  mockTakeChanges,
+  mockGiveChanges,
+} from "./changes.js";
 import { mockPushStash, mockPopStash } from "./stashes.js";
 
 const delay = (ms = 200) => new Promise((resolve) => setTimeout(resolve, ms));

@@ -10,8 +10,6 @@ import { setIdentity } from "../api/data.js";
 import { toast } from "../lib/toast.js";
 import "./pb_file_picker.js";
 
-// Settings > SSH: the identities (name + private key) used for git operations.
-// Loaded at startup, not when the dialog opens, so the corner avatar is right.
 customElements.define(
   getPrefix("settings-ssh"),
   class extends HTMLElement {
@@ -74,8 +72,11 @@ customElements.define(
       this.#html.$form.addEventListener("submit", (e) => this.#onAdd(e));
 
       this.#loadIdentities(fetchIdentities()).then((ok) => {
-        // the error text lives in the settings dialog: say it where it can be seen
-        if (!ok) toast(`Could not load the SSH identities: ${this.#html.$error.textContent}`, { error: true });
+        if (!ok)
+          toast(
+            `Could not load the SSH identities: ${this.#html.$error.textContent}`,
+            { error: true },
+          );
       });
     }
 
@@ -101,7 +102,6 @@ customElements.define(
       const keyFile = form.elements.key.files[0];
       if (!keyFile) return;
 
-      // saving asks GitHub who the key is, which takes a few seconds
       const $submit = form.querySelector(".pb-add-ssh");
       $submit.disabled = true;
       $submit.textContent = "Adding…";
@@ -128,7 +128,10 @@ customElements.define(
         await navigator.clipboard.writeText(key);
         toast("Public key copied. Paste it into your git host's SSH keys.");
       } catch {
-        toast("Could not copy. Select the key from the page and copy it yourself.", { error: true });
+        toast(
+          "Could not copy. Select the key from the page and copy it yourself.",
+          { error: true },
+        );
       }
     }
 

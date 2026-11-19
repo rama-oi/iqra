@@ -12,10 +12,8 @@ customElements.define(
   class extends HTMLElement {
     #initialized = false;
 
-    #html = {
-    };
+    #html = {};
 
-    // Which child shows is decided in CSS from data-view (see getView in data.js).
     #template = `
       <pb-workarea-empty></pb-workarea-empty>
       <pb-workarea-tree></pb-workarea-tree>
@@ -30,9 +28,12 @@ customElements.define(
         this.#initialized = true;
         this.innerHTML = this.#template;
 
-        // which child shows is decided in CSS from this one attribute
         const sync = () => (this.dataset.view = getView());
-        for (const type of ["pb-area-change", "pb-repository-change", "pb-file-select"]) {
+        for (const type of [
+          "pb-area-change",
+          "pb-repository-change",
+          "pb-file-select",
+        ]) {
           document.addEventListener(type, sync);
         }
         sync();

@@ -3,8 +3,6 @@ import { fetchCommits } from "../api/commits.js";
 import data from "../api/data.js";
 import { matches } from "../lib/filter.js";
 
-// Who committed to the current project. For now derived from the commit list;
-// a dedicated endpoint can replace this later.
 customElements.define(
   getPrefix("workarea-contributors"),
   class extends HTMLElement {
@@ -25,7 +23,11 @@ customElements.define(
       this.#initialized = true;
       this.innerHTML = this.#template;
 
-      for (const type of ["pb-repository-change", "pb-branch-change", "pb-history-change"]) {
+      for (const type of [
+        "pb-repository-change",
+        "pb-branch-change",
+        "pb-history-change",
+      ]) {
         document.addEventListener(type, () => this.#load());
       }
       document.addEventListener("pb-filter-change", () => this.#applyFilter());
@@ -34,12 +36,15 @@ customElements.define(
 
     #applyFilter() {
       let shown = 0;
-      for (const li of this.querySelectorAll(".pb-contributors li[data-index]")) {
+      for (const li of this.querySelectorAll(
+        ".pb-contributors li[data-index]",
+      )) {
         const { author } = this.#people[li.dataset.index];
         li.hidden = !matches(data.filter, author.name, author.email);
         if (!li.hidden) shown++;
       }
-      this.querySelector(".pb-no-match").hidden = shown > 0 || !this.#people.length;
+      this.querySelector(".pb-no-match").hidden =
+        shown > 0 || !this.#people.length;
     }
 
     async #load() {
@@ -47,7 +52,10 @@ customElements.define(
       const list = this.querySelector(".pb-contributors");
       if (!data.repository) return;
       try {
-        const { commits } = await fetchCommits({ repo: data.repository, branch: data.branch });
+        const { commits } = await fetchCommits({
+          repo: data.repository,
+          branch: data.branch,
+        });
         if (loadId !== this.#loadId) return;
 
         const byEmail = new Map();

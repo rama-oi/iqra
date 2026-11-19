@@ -1,12 +1,6 @@
-// A two-way lookup: `new Enum({ a: "A" })` makes get("a") === "A" and get("A") === "a".
-// Use it for keys that also have a display label (areas, states, ref types...).
-//
-// Both sides must be unique and no value may also be a key of another pair,
-// otherwise get() could not tell which direction you meant. That is checked
-// once, in the constructor, so a bad table fails at startup.
 export default class Enum {
-  #forward = new Map(); // key -> value
-  #backward = new Map(); // value -> key
+  #forward = new Map();
+  #backward = new Map();
 
   constructor(pairs) {
     const entries = Array.isArray(pairs) ? pairs : Object.entries(pairs);
@@ -23,12 +17,10 @@ export default class Enum {
     }
   }
 
-  // The other side of `x`, whichever side `x` is on. undefined when unknown.
   get(x) {
     return this.#forward.has(x) ? this.#forward.get(x) : this.#backward.get(x);
   }
 
-  // has() accepts either side; use hasKey() to validate input that must be a key.
   has(x) {
     return this.#forward.has(x) || this.#backward.has(x);
   }

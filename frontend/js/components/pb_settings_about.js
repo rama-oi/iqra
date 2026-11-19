@@ -1,7 +1,6 @@
 import { getPrefix, escapeHtml } from "../lib/helpers.js";
 import { APP } from "../constants/app.js";
 
-// Settings > About
 customElements.define(
   getPrefix("settings-about"),
   class extends HTMLElement {

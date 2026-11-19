@@ -1,7 +1,5 @@
 import { getPrefix, icon } from "../lib/helpers.js";
 
-// A project tab. It only reports what the user did (both events bubble);
-// pb-tabbar decides what that means.
 customElements.define(
   getPrefix("tab"),
   class extends HTMLElement {
@@ -39,10 +37,16 @@ customElements.define(
         this.#html.$closeBtn = this.querySelector(".pb-close");
 
         const fire = (type) =>
-          this.dispatchEvent(new CustomEvent(type, { bubbles: true, detail: this.label }));
-        this.#html.$label.addEventListener("click", () => fire("pb-tab-select"));
-        this.#html.$closeBtn.addEventListener("click", () => fire("pb-tab-close"));
-        // middle click closes, like browser tabs
+          this.dispatchEvent(
+            new CustomEvent(type, { bubbles: true, detail: this.label }),
+          );
+        this.#html.$label.addEventListener("click", () =>
+          fire("pb-tab-select"),
+        );
+        this.#html.$closeBtn.addEventListener("click", () =>
+          fire("pb-tab-close"),
+        );
+
         this.#html.$label.addEventListener("auxclick", (e) => {
           if (e.button === 1) fire("pb-tab-close");
         });
@@ -61,7 +65,7 @@ customElements.define(
 
     update() {
       this.#html.$label.textContent = this.label;
-      this.#html.$label.title = this.label; // the whole name, when it is cut short
+      this.#html.$label.title = this.label;
     }
   },
 );

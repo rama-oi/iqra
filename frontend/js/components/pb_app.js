@@ -16,8 +16,6 @@ import "./pb_sidebar_right.js";
 import "./pb_workarea.js";
 import "./pb_settings.js";
 
-// The root of the app: the page layout (header + three columns) and the dialogs.
-// index.html only contains <pb-app>, and every style in style.css is nested under it.
 customElements.define(
   getPrefix("app"),
   class extends HTMLElement {
@@ -46,23 +44,18 @@ customElements.define(
       this.#initialized = true;
       this.innerHTML = this.#template;
 
-      // Tabs are remembered between visits: drop those the backend no longer has, and
-      // check the branch we remembered still is where HEAD is.
       if (!MOCK.projects) refreshApp({ force: true });
 
-      // Coming back to the app (another window, another client may have changed the
-      // repositories meanwhile): reload everything.
       window.addEventListener("focus", () => refreshApp());
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") refreshApp();
       });
 
-      // Escape steps back (diff, then commit preview), unless it already means
-      // something else: closing a dialog or menu, or leaving a text field.
       document.addEventListener("keydown", (e) => {
         if (e.key !== "Escape" || e.defaultPrevented) return;
         if (document.querySelector("dialog[open], :popover-open")) return;
-        if (e.target.closest?.("input, textarea, select, [contenteditable]")) return;
+        if (e.target.closest?.("input, textarea, select, [contenteditable]"))
+          return;
         if (goBack()) e.preventDefault();
       });
     }

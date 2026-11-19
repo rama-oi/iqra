@@ -2,19 +2,9 @@ import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
 import { fetchFolders } from "../api/fs.js";
 import { load, save } from "../store/storage.js";
 
-// Where the dialog opens when it is not told where to start: the last folder chosen,
-// or for a git repository its parent, so the repositories next to it are in view.
 const LAST_KEY = "lastFolder";
 const isPath = (v) => typeof v === "string" && v.startsWith("/");
 
-// A modal "choose a folder" dialog that browses the machine running the backend.
-//
-//   const path = await browseFolder({ title: "Open a repository", start: "/home/me" });
-//   // path is the chosen folder, or null when dismissed.
-//
-// Clicking a folder goes into it; "Choose this folder" picks the one being shown.
-// With no `start` it opens where the last choice was made (like a file manager).
-// Folders that are git repositories carry a badge.
 export function browseFolder(options) {
   const browser = document.querySelector(getPrefix("file-browser"));
   if (!browser) throw new Error("<pb-file-browser> is missing from the page");
@@ -81,7 +71,7 @@ customElements.define(
 
     browse({ title = "Choose a folder", start = "" } = {}) {
       const { $dialog, $title, $hidden } = this.#html;
-      // A second call while open answers the first with "nothing chosen".
+
       this.#finish(null);
 
       $title.textContent = title;
@@ -93,7 +83,7 @@ customElements.define(
       return new Promise((resolve) => {
         this.#resolve = resolve;
         if (!$dialog.open) $dialog.showModal();
-        // An unreadable start (typo, deleted folder, an old memory) falls back to home.
+
         this.#go(start || load(LAST_KEY, "", isPath), { fallbackHome: true });
       });
     }
@@ -112,7 +102,8 @@ customElements.define(
         if (requestId !== this.#requestId) return;
         this.#listing = listing;
         this.#setStatus(listing.folders.length ? "" : "No folders in here.");
-        if (listing.truncated) this.#setStatus("Only the first folders are shown.");
+        if (listing.truncated)
+          this.#setStatus("Only the first folders are shown.");
       } catch (err) {
         if (requestId !== this.#requestId) return;
         console.error(err);
@@ -124,12 +115,11 @@ customElements.define(
     #render() {
       const { $path, $list, $choose } = this.#html;
       const l = this.#listing;
-      // <bdo dir="ltr"> keeps the slashes in place inside the right-to-left box, which
-      // is only there so a long path scrolls to show its end.
+
       $path.innerHTML = l ? `<bdo dir="ltr">${escapeHtml(l.path)}</bdo>` : "";
       $path.title = l?.path ?? "";
       $choose.disabled = !l;
-      // ".." goes to the parent folder, as in a terminal listing.
+
       const parent = l?.parent
         ? `
           <li>
@@ -180,7 +170,6 @@ customElements.define(
       this.#html.$dialog.close();
     }
 
-    // Answers the pending browse() exactly once.
     #finish(path) {
       const resolve = this.#resolve;
       this.#resolve = null;

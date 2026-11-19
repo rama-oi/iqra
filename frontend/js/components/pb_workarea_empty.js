@@ -3,7 +3,6 @@ import { fetchProjects } from "../api/projects.js";
 import { openProject } from "../api/data.js";
 import { pickOne } from "./pb_picker.js";
 
-// Shown instead of every view while no project is open.
 customElements.define(
   getPrefix("workarea-empty"),
   class extends HTMLElement {
@@ -24,7 +23,6 @@ customElements.define(
         document.dispatchEvent(new CustomEvent("pb-open-clone")),
       );
 
-      // Projects the server remembers, which stay when the browser forgets its tabs.
       const $switch = this.querySelector(".pb-switch");
       $switch.addEventListener("click", () => this.#chooseSaved());
       fetchProjects()
@@ -42,7 +40,11 @@ customElements.define(
       const name = await pickOne({
         title: "Open a saved project",
         items: projects.then((list) =>
-          list.map((p) => ({ id: p.name, label: p.name, description: p.description })),
+          list.map((p) => ({
+            id: p.name,
+            label: p.name,
+            description: p.description,
+          })),
         ),
       });
       if (name === null) return;

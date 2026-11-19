@@ -5,7 +5,6 @@ import { mockSetDetached } from "./projects.js";
 import MOCK from "./config.js";
 const USE_MOCK = MOCK.commits;
 
-// The mock keeps its own history so commit/amend show up in the tree.
 const mockStore = structuredClone(MOCK_COMMITS_RESPONSE);
 const delay = (ms = 150) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -28,11 +27,6 @@ export async function fetchCommits({ repo, branch, limit = 200, cursor } = {}) {
   return res.json();
 }
 
-// Move HEAD to a local branch (`branch`) or detach it at a commit (`commit`, a hash).
-// Git refuses when uncommitted changes would be lost; the error says which files.
-//
-// Backend contract:
-//   POST /api/repos/:repo/checkout  { branch } or { commit } -> { currentBranch | null }
 export async function checkout({ repo, branch, commit }) {
   if (USE_MOCK) {
     await delay(200);
@@ -54,12 +48,6 @@ export async function checkout({ repo, branch, commit }) {
   return body;
 }
 
-// Commit the staged files, or with `amend` fold them into the latest commit.
-// `message` may be empty only when amending: the previous message is kept.
-//
-// Backend contract:
-//   POST /api/repos/:repo/commits  { branch, message, amend } -> { commit }
-//   errors answer { error: "human readable text" }
 export async function createCommit({ repo, branch, message, amend = false }) {
   if (USE_MOCK) {
     await delay(300);

@@ -1,28 +1,29 @@
-// Projects (repositories) and their branches.
-//
-// Backend contract:
-//   GET /api/projects                  -> { projects: [{ name, description, defaultBranch }] }
-//   GET /api/repos/:repo/branches      -> { branches: [{ name, isDefault, isDetached }] }   (local ones)
-//     isDefault marks the one HEAD is on; with a detached HEAD the first entry is named
-//     after the commit (short hash) and has isDetached, and no real branch is isDefault
-//   POST /api/projects { url, name }   -> { project: { name, description, defaultBranch } }
-//     clones the repository over SSH (url is "git@host:owner/repo.git" or "ssh://...";
-//     the app never sends http(s), see lib/git_url.js); errors answer { error: "human readable text" }
-//   POST /api/projects/open { path, name } -> { project: { name, description, defaultBranch } }
-//     opens a git repository that is already in a folder on the machine running the backend
-
 import MOCK from "./config.js";
 const USE_MOCK = MOCK.projects;
 
 const MOCK_PROJECTS = [
-  { name: "fikret", description: "Web Git client playground", defaultBranch: "v10" },
+  {
+    name: "fikret",
+    description: "Web Git client playground",
+    defaultBranch: "v10",
+  },
   { name: "mako zero", description: "Game prototype", defaultBranch: "main" },
   { name: "iqra", description: "This very app", defaultBranch: "main" },
-  { name: "dotfiles", description: "Personal configuration", defaultBranch: "main" },
+  {
+    name: "dotfiles",
+    description: "Personal configuration",
+    defaultBranch: "main",
+  },
 ];
 
 const MOCK_BRANCHES = {
-  fikret: ["v10", "main", "feature/sidebar", "feature/theme", "fix/avatar-crash"],
+  fikret: [
+    "v10",
+    "main",
+    "feature/sidebar",
+    "feature/theme",
+    "fix/avatar-crash",
+  ],
   "mako zero": ["main", "feature/inventory", "fix/jump-height"],
   iqra: ["main", "feature/backlog"],
   dotfiles: ["main"],
@@ -40,8 +41,6 @@ export async function fetchProjects() {
   return (await res.json()).projects;
 }
 
-// The sample repositories whose HEAD is detached: project -> short hash. Set by the
-// sample checkout (see api/commits.js).
 const mockDetached = {};
 export function mockSetDetached(repo, hash) {
   if (hash) mockDetached[repo] = hash.slice(0, 7);
@@ -59,15 +58,15 @@ export async function fetchBranches(repo) {
       isDefault: !detached && name === project?.defaultBranch,
       isDetached: false,
     }));
-    return detached ? [{ name: detached, isDefault: true, isDetached: true }, ...list] : list;
+    return detached
+      ? [{ name: detached, isDefault: true, isDetached: true }, ...list]
+      : list;
   }
   const res = await fetch(`/api/repos/${encodeURIComponent(repo)}/branches`);
   if (!res.ok) throw new Error(`Failed to load branches (${res.status})`);
   return (await res.json()).branches;
 }
 
-// Delete a local branch. Git refuses unmerged work unless `force`; the error says so.
-//   DELETE /api/repos/:repo/branches?name=&force=1 -> {}  (errors: { error })
 export async function deleteBranch({ repo, name, force = false }) {
   if (USE_MOCK) {
     await delay();
@@ -77,14 +76,18 @@ export async function deleteBranch({ repo, name, force = false }) {
   }
   const params = new URLSearchParams({ name });
   if (force) params.set("force", "true");
-  const res = await fetch(`/api/repos/${encodeURIComponent(repo)}/branches?${params}`, { method: "DELETE" });
+  const res = await fetch(
+    `/api/repos/${encodeURIComponent(repo)}/branches?${params}`,
+    { method: "DELETE" },
+  );
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error || `Could not delete the branch (${res.status})`);
+  if (!res.ok)
+    throw new Error(
+      body.error || `Could not delete the branch (${res.status})`,
+    );
   return body;
 }
 
-// Delete a branch on its remote (a push with --delete; uses the active SSH identity).
-//   DELETE /api/repos/:repo/remote-branches?name=origin/x -> {}  (errors: { error })
 export async function deleteRemoteBranch({ repo, name }) {
   if (USE_MOCK) {
     await delay();
@@ -92,14 +95,18 @@ export async function deleteRemoteBranch({ repo, name }) {
     if (i >= 0) MOCK_REMOTE_BRANCHES[repo].splice(i, 1);
     return {};
   }
-  const res = await fetch(`/api/repos/${encodeURIComponent(repo)}/remote-branches?${new URLSearchParams({ name })}`, { method: "DELETE" });
+  const res = await fetch(
+    `/api/repos/${encodeURIComponent(repo)}/remote-branches?${new URLSearchParams({ name })}`,
+    { method: "DELETE" },
+  );
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error || `Could not delete the remote branch (${res.status})`);
+  if (!res.ok)
+    throw new Error(
+      body.error || `Could not delete the remote branch (${res.status})`,
+    );
   return body;
 }
 
-// Remote-tracking branches ("origin/main"), as last fetched.
-//   GET /api/repos/:repo/remote-branches -> { branches: [{ name }] }
 const MOCK_REMOTE_BRANCHES = {
   fikret: ["origin/main", "origin/v10", "origin/feature/theme"],
   "mako zero": ["origin/main"],
@@ -110,29 +117,44 @@ export async function fetchRemoteBranches(repo) {
     await delay();
     return (MOCK_REMOTE_BRANCHES[repo] ?? []).map((name) => ({ name }));
   }
-  const res = await fetch(`/api/repos/${encodeURIComponent(repo)}/remote-branches`);
-  if (!res.ok) throw new Error(`Failed to load remote branches (${res.status})`);
+  const res = await fetch(
+    `/api/repos/${encodeURIComponent(repo)}/remote-branches`,
+  );
+  if (!res.ok)
+    throw new Error(`Failed to load remote branches (${res.status})`);
   return (await res.json()).branches;
 }
 
-// SSH only: "ssh://host/path" or the scp-like "user@host:path".
 const SSH_URL = /^(ssh:\/\/\S+|[\w.-]+@[\w.-]+:\S+)$/i;
-const LOCAL_PATH = /^(\/|~[\/\\]|[a-z]:[\/\\]|\\\\)/i; // /abs, ~/home, C:\drive, \\share
+const LOCAL_PATH = /^(\/|~[\/\\]|[a-z]:[\/\\]|\\\\)/i;
 
-// "/home/me/projects/iqra/" and "C:\\code\\iqra" both give "iqra".
 export function folderName(path) {
-  return String(path ?? "").trim().replace(/[\/\\]+$/, "").split(/[\/\\]/).pop() ?? "";
+  return (
+    String(path ?? "")
+      .trim()
+      .replace(/[\/\\]+$/, "")
+      .split(/[\/\\]/)
+      .pop() ?? ""
+  );
 }
 
 export async function cloneProject({ url, name }) {
   if (USE_MOCK) {
-    await new Promise((resolve) => setTimeout(resolve, 900)); // cloning takes a while
-    if (/^https?:\/\//i.test(url)) throw new Error("Only SSH URLs are supported, e.g. git@github.com:owner/repo.git.");
-    if (!SSH_URL.test(url)) throw new Error("That does not look like an SSH git URL.");
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    if (/^https?:\/\//i.test(url))
+      throw new Error(
+        "Only SSH URLs are supported, e.g. git@github.com:owner/repo.git.",
+      );
+    if (!SSH_URL.test(url))
+      throw new Error("That does not look like an SSH git URL.");
     if (MOCK_PROJECTS.some((p) => p.name === name)) {
       throw new Error(`A project named "${name}" already exists.`);
     }
-    const project = { name, description: `Cloned from ${url}`, defaultBranch: "main" };
+    const project = {
+      name,
+      description: `Cloned from ${url}`,
+      defaultBranch: "main",
+    };
     MOCK_PROJECTS.push(project);
     MOCK_BRANCHES[name] = ["main"];
     return structuredClone(project);
@@ -153,11 +175,18 @@ export async function cloneProject({ url, name }) {
 export async function openLocalProject({ path, name }) {
   if (USE_MOCK) {
     await new Promise((resolve) => setTimeout(resolve, 500));
-    if (!LOCAL_PATH.test(path)) throw new Error("Enter the full path of the folder, e.g. /home/me/projects/iqra.");
+    if (!LOCAL_PATH.test(path))
+      throw new Error(
+        "Enter the full path of the folder, e.g. /home/me/projects/iqra.",
+      );
     if (MOCK_PROJECTS.some((p) => p.name === name)) {
       throw new Error(`A project named "${name}" already exists.`);
     }
-    const project = { name, description: `Opened from ${path}`, defaultBranch: "main" };
+    const project = {
+      name,
+      description: `Opened from ${path}`,
+      defaultBranch: "main",
+    };
     MOCK_PROJECTS.push(project);
     MOCK_BRANCHES[name] = ["main"];
     return structuredClone(project);

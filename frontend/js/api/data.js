@@ -3,7 +3,6 @@ import AREAS from "../constants/areas.js";
 import { THEMES, ACCENTS } from "../constants/themes.js";
 import { load, save, upgrade, takeLegacy } from "../store/storage.js";
 
-// Before the store, theme and panel state used their own "pb-*" keys.
 upgrade((from, { save }) => {
   if (from >= 1) return;
   const theme = takeLegacy("pb-theme");
@@ -12,42 +11,40 @@ upgrade((from, { save }) => {
   const right = takeLegacy("pb-collapsed-pb-sidebar-right");
   if (theme) save("theme", theme);
   if (accent) save("accent", accent);
-  if (left !== null || right !== null) save("panels", { left: left === "1", right: right === "1" });
+  if (left !== null || right !== null)
+    save("panels", { left: left === "1", right: right === "1" });
 });
 
 const isId = (list) => (id) => list.some((item) => item.id === id);
-const isTabs = (v) => Array.isArray(v) && v.every((t) => t && typeof t.name === "string");
-const isPanels = (v) => v && typeof v.left === "boolean" && typeof v.right === "boolean";
+const isTabs = (v) =>
+  Array.isArray(v) && v.every((t) => t && typeof t.name === "string");
+const isPanels = (v) =>
+  v && typeof v.left === "boolean" && typeof v.right === "boolean";
 
-// Shared app state. Change it through the functions below so the rest of the
-// app hears about it via a document event.
 const data = {
   appName: "Iqra",
-  // Open projects. The active one is `repository`; each tab remembers its branch.
-  // With the real backend they are remembered between visits (see syncTabs).
   tabs: MOCK.projects
     ? [
         { name: "fikret", branch: "v10" },
         { name: "mako zero", branch: "main" },
       ]
     : load("tabs", [], isTabs),
-  repository: null, // the active tab's project, null when no tab is open
-  branch: null, // the current branch, or the short hash of the commit when `detached`
-  detached: false, // HEAD is on a commit, not on a branch
-  area: "workarea", // a key of AREAS
-  commit: null, // the commit selected in the tree, or null
-  file: null, // the file whose diff shows: { path, status, staged, commit }, or null
-  filter: "", // the toolbar search text
-  identity: null, // the active identity ({ id, name, avatarUrl, keyName }), or null
-
-  // Remembered between visits (see store/storage.js).
+  repository: null,
+  branch: null,
+  detached: false,
+  area: "workarea",
+  commit: null,
+  file: null,
+  filter: "",
+  identity: null,
   theme: load("theme", THEMES[0].id, isId(THEMES)),
   accent: load("accent", ACCENTS[0].id, isId(ACCENTS)),
-  panels: load("panels", { left: false, right: false }, isPanels), // true = collapsed
+  panels: load("panels", { left: false, right: false }, isPanels),
 };
 
-// The active tab: the remembered one when it is still open, else the first.
-const first = MOCK.projects ? data.tabs[0] : data.tabs.find((t) => t.name === load("active", null)) ?? data.tabs[0];
+const first = MOCK.projects
+  ? data.tabs[0]
+  : (data.tabs.find((t) => t.name === load("active", null)) ?? data.tabs[0]);
 data.repository = first?.name ?? null;
 data.branch = first?.branch ?? null;
 data.detached = !!first?.detached;
@@ -75,7 +72,6 @@ function clearFilter() {
   emit("pb-filter-change", "");
 }
 
-// Make a tab (or nothing, when the last one was closed) the active project.
 function activate(tab) {
   data.repository = tab?.name ?? null;
   data.branch = tab?.branch ?? null;
@@ -91,12 +87,11 @@ function activate(tab) {
 export function setArea(area) {
   if (!AREAS.hasKey(area) || area === data.area) return;
   data.area = area;
-  clearFile(); // choosing a view from the menu leaves the diff
-  clearFilter(); // a filter makes no sense in another view
+  clearFile();
+  clearFilter();
   emit("pb-area-change", area);
 }
 
-// Open a project in a tab (reusing its tab if it is already open) and show it.
 export function openProject({ name, defaultBranch }) {
   let tab = data.tabs.find((t) => t.name === name);
   if (!tab) {
@@ -108,11 +103,10 @@ export function openProject({ name, defaultBranch }) {
   if (name !== data.repository) activate(tab);
 }
 
-// Forget remembered tabs whose project the backend no longer knows (folder removed,
-// data folder reset). Call with the list from fetchProjects().
 export function syncTabs(projects) {
   const known = new Set(projects.map((p) => p.name));
-  for (const tab of [...data.tabs]) if (!known.has(tab.name)) closeTab(tab.name);
+  for (const tab of [...data.tabs])
+    if (!known.has(tab.name)) closeTab(tab.name);
 }
 
 export function selectTab(name) {
@@ -120,20 +114,23 @@ export function selectTab(name) {
   if (tab && name !== data.repository) activate(tab);
 }
 
-// Closing the active tab shows its right neighbour, else its left one, else nothing.
 export function closeTab(name) {
   const index = data.tabs.findIndex((t) => t.name === name);
   if (index === -1) return;
   data.tabs.splice(index, 1);
   saveTabs();
   emit("pb-tabs-change");
-  if (name === data.repository) activate(data.tabs[index] ?? data.tabs[index - 1] ?? null);
+  if (name === data.repository)
+    activate(data.tabs[index] ?? data.tabs[index - 1] ?? null);
 }
 
-// A detached HEAD is shown as a branch named after the commit: pass its short hash
-// and { detached: true }.
 export function setBranch(branch, { detached = false } = {}) {
-  if (!branch || !data.repository || (branch === data.branch && detached === data.detached)) return;
+  if (
+    !branch ||
+    !data.repository ||
+    (branch === data.branch && detached === data.detached)
+  )
+    return;
   data.branch = branch;
   data.detached = detached;
   const tab = data.tabs.find((t) => t.name === data.repository);
@@ -148,7 +145,6 @@ export function setBranch(branch, { detached = false } = {}) {
   emit("pb-branch-change", branch);
 }
 
-// Pass null to go back to the "commit your changes" view.
 export function setCommit(commit) {
   if ((commit?.hash ?? null) === (data.commit?.hash ?? null)) return;
   data.commit = commit;
@@ -156,7 +152,6 @@ export function setCommit(commit) {
   emit("pb-commit-select", commit);
 }
 
-// The selected commit, as freshly loaded (its labels may have moved).
 export function refreshCommit(commit) {
   if (!commit || commit.hash !== data.commit?.hash) return;
   data.commit = commit;
@@ -169,8 +164,6 @@ const sameFile = (a, b) =>
   (a?.commit ?? null) === (b?.commit ?? null) &&
   !!a === !!b;
 
-// A file of the working tree ({ path, status, staged }) or of the selected commit
-// ({ path, status, commit }). Pass null to close the diff.
 export function setFile(file) {
   file = file ?? null;
   if (sameFile(file, data.file)) return;
@@ -178,8 +171,6 @@ export function setFile(file) {
   emit("pb-file-select", file);
 }
 
-// One step back, for the Escape key: the diff first, then the commit preview.
-// Returns false when there is nothing to close.
 export function goBack() {
   if (data.file) setFile(null);
   else if (data.commit) setCommit(null);
@@ -187,12 +178,9 @@ export function goBack() {
   return true;
 }
 
-export const isSelectedFile = (file) => !!data.file && sameFile(file, data.file);
+export const isSelectedFile = (file) =>
+  !!data.file && sameFile(file, data.file);
 
-// What the work area shows. One answer, so the CSS only reads data-view.
-// Order matters: with no project only the empty message shows, otherwise a
-// selected file's diff covers whichever view the area menu picked.
-// (A merge conflict will go between the two, above the diff.)
 export function getView() {
   if (!data.repository) return "empty";
   if (data.file) return "diffs";
@@ -205,7 +193,6 @@ export function setFilter(text) {
   emit("pb-filter-change", text);
 }
 
-// Called with the active identity whenever the identity list is (re)loaded.
 export function setIdentity(identity) {
   data.identity = identity ?? null;
   emit("pb-identity-change", data.identity);
@@ -225,7 +212,6 @@ export function setAccent(id) {
   emit("pb-accent-change", id);
 }
 
-// side: "left" | "right"
 export function setPanelCollapsed(side, collapsed) {
   if (!(side in data.panels) || data.panels[side] === collapsed) return;
   data.panels[side] = collapsed;

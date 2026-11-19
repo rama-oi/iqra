@@ -5,9 +5,6 @@ import { openProject } from "../api/data.js";
 
 const NAME_HINT = "taken from the URL";
 
-// Clone > a remote repository. Everything goes over SSH: when an http(s) URL is
-// typed, the SSH URL it becomes is shown under it (never swapped silently) and
-// that one is cloned.
 customElements.define(
   getPrefix("clone-url"),
   class extends HTMLElement {
@@ -64,7 +61,6 @@ customElements.define(
       this.#onInput();
     }
 
-    // The URL that will be cloned: what was typed, or its SSH conversion.
     #onInput() {
       const { $url, $name, $note, $noteLabel, $noteUrl } = this.#html;
       const result = toSshUrl($url.value);
@@ -74,7 +70,9 @@ customElements.define(
       $note.hidden = !(result && (result.converted || !result.ok));
       $note.classList.toggle("pb-error", !!result && !result.ok);
       if (!result || (result.ok && !result.converted)) return;
-      $noteLabel.textContent = result.ok ? "Will be cloned over SSH:" : result.message;
+      $noteLabel.textContent = result.ok
+        ? "Will be cloned over SSH:"
+        : result.message;
       $noteUrl.textContent = result.ok ? result.url : "";
     }
 
@@ -91,7 +89,9 @@ customElements.define(
       $url.disabled = busy;
       $name.disabled = busy;
       $submit.textContent = busy ? "cloning…" : "clone";
-      this.dispatchEvent(new CustomEvent("pb-clone-busy", { bubbles: true, detail: busy }));
+      this.dispatchEvent(
+        new CustomEvent("pb-clone-busy", { bubbles: true, detail: busy }),
+      );
     }
 
     async #onSubmit(e) {
@@ -103,7 +103,8 @@ customElements.define(
       if (!result.ok) return this.#setError(result.message);
 
       const name = this.#html.$name.value.trim() || repoName(result.url);
-      if (!name) return this.#setError("Could not work out a name, please enter one.");
+      if (!name)
+        return this.#setError("Could not work out a name, please enter one.");
 
       this.#setError("");
       this.#setBusy(true);

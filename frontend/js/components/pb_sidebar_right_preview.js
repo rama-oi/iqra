@@ -1,8 +1,12 @@
 import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
-import data, { setBranch, setCommit, setFile, isSelectedFile } from "../api/data.js";
+import data, {
+  setBranch,
+  setCommit,
+  setFile,
+  isSelectedFile,
+} from "../api/data.js";
 import { checkout } from "../api/commits.js";
 
-// First line is the subject, whatever follows the first blank line is the body.
 function splitMessage(message) {
   const [subject, ...rest] = String(message ?? "").split("\n");
   return { subject, body: rest.join("\n").trim() };
@@ -10,8 +14,15 @@ function splitMessage(message) {
 
 function formatWhen(iso) {
   const d = new Date(iso);
-  const time = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-  const date = d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  const time = d.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const date = d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
   return `${time} @ ${date}`;
 }
 
@@ -75,17 +86,22 @@ customElements.define(
         $files: $(".pb-files .pb-content"),
       };
 
-      this.querySelector(".pb-close").addEventListener("click", () => setCommit(null));
+      this.querySelector(".pb-close").addEventListener("click", () =>
+        setCommit(null),
+      );
       this.#html.$checkout.addEventListener("click", () => this.#checkout());
       document.addEventListener("pb-commit-select", () => this.#render());
       document.addEventListener("pb-file-select", () => this.#markSelected());
 
-      // Click a changed file to see its diff in this commit; click again to close it.
       this.#html.$files.addEventListener("click", (e) => {
         const index = e.target.closest("button[data-index]")?.dataset.index;
         const f = data.commit?.files?.[index];
         if (!f) return;
-        const file = { path: f.path, status: f.status, commit: data.commit.hash };
+        const file = {
+          path: f.path,
+          status: f.status,
+          commit: data.commit.hash,
+        };
         setFile(isSelectedFile(file) ? null : file);
       });
       this.#render();
@@ -130,10 +146,10 @@ customElements.define(
       this.#markSelected();
     }
 
-    // A local branch pointing here is checked out by name, so new commits land on it;
-    // otherwise HEAD is detached at the commit.
     #checkoutTarget(commit) {
-      const branch = commit.refs.find((r) => r.type === "branch" && !r.isHead)?.name;
+      const branch = commit.refs.find(
+        (r) => r.type === "branch" && !r.isHead,
+      )?.name;
       return branch ? { branch } : { commit: commit.hash };
     }
 
@@ -153,9 +169,12 @@ customElements.define(
         $checkout.disabled = false;
         return;
       }
-      // Back to the working changes, now on top of the new HEAD.
+
       if (target.branch) setBranch(target.branch);
-      else setBranch(commit.shortHash ?? commit.hash.slice(0, 7), { detached: true });
+      else
+        setBranch(commit.shortHash ?? commit.hash.slice(0, 7), {
+          detached: true,
+        });
       setCommit(null);
       document.dispatchEvent(new CustomEvent("pb-history-change"));
     }
@@ -164,7 +183,13 @@ customElements.define(
       const commit = data.commit;
       for (const btn of this.querySelectorAll("button[data-index]")) {
         const f = commit?.files?.[btn.dataset.index];
-        const active = !!f && isSelectedFile({ path: f.path, status: f.status, commit: commit.hash });
+        const active =
+          !!f &&
+          isSelectedFile({
+            path: f.path,
+            status: f.status,
+            commit: commit.hash,
+          });
         btn.classList.toggle("pb-active", active);
         btn.setAttribute("aria-pressed", String(active));
       }

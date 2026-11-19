@@ -41,7 +41,6 @@ const TABLE = [
   ["k", [], "Start boilerplate", "fikret", []],
 ];
 
-// Changed files of some commits (the preview panel lists them).
 const FILES = {
   a: [{ path: "js/graph/render-row.js", status: "A" }, { path: "js/graph/layout.js", status: "M" }],
   b: [{ path: "js/components/pb_workarea_tree.js", status: "A" }],
@@ -67,6 +66,5 @@ export const MOCK_COMMITS_RESPONSE = {
       files: FILES[id] ?? [],
     };
   }),
-  // Pagination: pass this back as ?cursor= to get the next page, null = end.
   nextCursor: null,
 };

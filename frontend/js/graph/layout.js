@@ -1,11 +1,9 @@
 export const PALETTE_SIZE = 8;
 
-// `commits` is newest first. A commit with `isWorking` is the working tree drawn as a
-// commit on top of HEAD: the line leaving it is flagged `dashed` until it reaches HEAD.
 export function layoutGraph(commits) {
   const lanes = [];
   const colors = [];
-  const dashed = []; // per lane: the line waiting there belongs to the working tree
+  const dashed = [];
   let cycle = 0;
   let laneCount = 1;
 
@@ -35,7 +33,11 @@ export function layoutGraph(commits) {
       if (hash !== null && !incoming.includes(i))
         through.push({ lane: i, color: colors[i], dashed: !!dashed[i] });
     });
-    const ins = incoming.map((i) => ({ lane: i, color: colors[i], dashed: !!dashed[i] }));
+    const ins = incoming.map((i) => ({
+      lane: i,
+      color: colors[i],
+      dashed: !!dashed[i],
+    }));
 
     for (const i of incoming) {
       lanes[i] = null;

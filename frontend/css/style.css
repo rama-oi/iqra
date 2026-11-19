@@ -1,8 +1,6 @@
 @import url(./init.css);
 @import url(./themes.css);
 
-/* Everything lives under pb-app, so nothing here styles the page around it.
-   (Only init.css touches html/body, and the custom properties on :root.) */
 pb-app {
   display: grid;
   grid-template-rows:
@@ -398,7 +396,7 @@ pb-app {
     border: 1px solid var(--border);
     color: var(--text);
     max-width: min(560px, 92vw);
-    white-space: pre-line; /* keep git's own line breaks */
+    white-space: pre-line;
 
     &.pb-error {
       color: var(--danger);
@@ -406,7 +404,6 @@ pb-app {
     }
   }
 
-  /* Closing only hides something, so it stays neutral; red is for things that delete. */
   .pb-close:hover {
     background-color: var(--hover);
   }
@@ -449,7 +446,6 @@ pb-app {
       }
     }
 
-    /* Body rows have a fixed height so the per-row graph svgs stack seamlessly. */
     .pb-table-body .pb-row {
       height: var(--row-height);
 
@@ -461,8 +457,6 @@ pb-app {
         background-color: var(--surface-1);
       }
 
-      /* Where HEAD is (the checked-out commit). Apart from the selection above: a bar on
-         the edge, a tint, and a ring around the node, so it still shows on a selected row. */
       &.pb-current {
         box-shadow: inset 3px 0 0 var(--accent);
         background-color: color-mix(in srgb, var(--accent) 14%, transparent);
@@ -488,7 +482,6 @@ pb-app {
         }
       }
 
-      /* keeps a scrolled-to row clear of the sticky header */
       scroll-margin-block: calc(var(--row-height) * 2);
     }
 
@@ -517,7 +510,7 @@ pb-app {
       }
       .pb-column-branch {
         overflow: hidden;
-        justify-content: flex-end; /* last pill touches the graph column */
+        justify-content: flex-end;
         gap: 0.25rem;
         padding-inline-end: 0;
       }
@@ -535,7 +528,7 @@ pb-app {
     }
 
     .pb-graph {
-      display: block; /* no inline-svg baseline gap between rows */
+      display: block;
       overflow: visible;
     }
     .pb-graph path {
@@ -548,8 +541,6 @@ pb-app {
       stroke: var(--base);
       stroke-width: 2;
     }
-
-    /* The working tree: a dashed line down to HEAD, ending in a hollow node. */
     .pb-graph .pb-dashed path {
       stroke-dasharray: 3 3;
     }
@@ -572,7 +563,7 @@ pb-app {
 
     pb-avatar.pb-node {
       position: absolute;
-      color: var(--base); /* initials on the solid lane colour */
+      color: var(--base);
       border: 2px solid var(--c);
       background-color: var(--c);
     }
@@ -603,8 +594,6 @@ pb-app {
 
     display: grid;
     grid-template-rows: repeat(2, minmax(0, 1fr));
-    /* One column no wider than the window. Left as `auto` it grows to fit every tab, which
-       pushes the menu off-screen and stretches the toolbar instead of letting the tabs scroll. */
     grid-template-columns: minmax(0, 1fr);
     min-width: 0;
 
@@ -626,7 +615,6 @@ pb-app {
         min-width: 0;
         overflow-x: auto;
         overflow-y: hidden;
-        /* the arrows scroll it, so no scrollbar is needed */
         scrollbar-width: none;
       }
 
@@ -665,8 +653,6 @@ pb-app {
         }
       }
 
-      /* A tab keeps its size and a long name is cut with an ellipsis, rather than the tab
-         shrinking until the name wraps over two lines. */
       pb-tab {
         flex: none;
         max-width: 15rem;
@@ -714,7 +700,6 @@ pb-app {
           }
         }
 
-        /* with no project there is no branch to show, nor anything to search */
         &[data-empty] {
           .pb-branch,
           .pb-search,
@@ -753,9 +738,6 @@ pb-app {
     min-width: 0;
     min-height: 0;
 
-    /* The sidebar itself never scrolls: only its content does. The collapse bar is a
-       sibling of the content, so it always spans the full height of the panel and
-       stays put while the content scrolls. */
     pb-sidebar-right,
     pb-sidebar-left {
       display: flex;
@@ -786,7 +768,6 @@ pb-app {
       }
     }
 
-    /* A collapsed sidebar shrinks to just its collapse bar. */
     &:has(pb-sidebar-left.pb-collapsed) {
       --sidebar-left-width: var(--collapse-btn-width);
     }
@@ -863,7 +844,6 @@ pb-app {
     }
   }
 
-  /* --- settings dialog (the clone dialog shares this tabbed layout) -------- */
   pb-settings dialog,
   pb-clone dialog {
     padding: 0;
@@ -1013,7 +993,6 @@ pb-app {
       list-style: disc inside;
     }
 
-    /* Pixel art: scale in whole steps without smoothing it. */
     .pb-logo {
       display: block;
       image-rendering: pixelated;
@@ -1024,8 +1003,6 @@ pb-app {
     }
   }
 
-  /* --- workarea: which view shows ------------------------------------- */
-  /* The workarea sets data-view (see getView in data.js): one child shows. */
   pb-workarea[data-view] > * {
     display: none;
   }
@@ -1142,7 +1119,6 @@ pb-app {
     }
   }
 
-  /* --- toolbar area menu ---------------------------------------------- */
   pb-view-switcher .pb-area-menu {
     position: fixed;
     inset: auto;
@@ -1165,7 +1141,6 @@ pb-app {
     }
   }
 
-  /* --- picker dialog -------------------------------------------------- */
   pb-picker dialog,
   pb-file-browser dialog {
     padding: 0;
@@ -1240,7 +1215,6 @@ pb-app {
     display: none;
   }
 
-  /* --- workarea: no project open -------------------------------------- */
   pb-workarea[data-view="empty"] > pb-workarea-empty {
     display: flex;
   }
@@ -1258,9 +1232,7 @@ pb-app {
     }
   }
 
-  /* --- commit panel --------------------------------------------------- */
   pb-sidebar-right-commit {
-    /* a file and its stage/unstage button side by side */
     .pb-file-row {
       display: flex;
       align-items: stretch;
@@ -1299,7 +1271,6 @@ pb-app {
     }
   }
 
-  /* --- clone dialog: the settings layout, smaller, with its own tabs ----- */
   pb-clone dialog {
     width: min(620px, 92vw);
     height: min(400px, 86vh);
@@ -1318,7 +1289,6 @@ pb-app {
       }
     }
 
-    /* what an http(s) URL becomes: shown under the URL, never swapped silently */
     .pb-ssh-note {
       display: flex;
       flex-direction: column;
@@ -1336,7 +1306,6 @@ pb-app {
     }
   }
 
-  /* --- changed files (commit panel and commit preview) ---------------- */
   .pb-file {
     display: flex;
     align-items: center;
@@ -1374,10 +1343,6 @@ pb-app {
     }
   }
 
-  /* --- workarea: diff ------------------------------------------------- */
-  /* A column: the title stays, the body is the one thing that scrolls (both ways), so the
-     horizontal scrollbar is always at the bottom of the panel and not at the end of a
-     long diff. Same strength as the rule that shows the view, or that one wins. */
   pb-workarea[data-view="diffs"] > pb-workarea-diffs {
     display: flex;
     flex-direction: column;
@@ -1435,8 +1400,6 @@ pb-app {
       overflow: auto;
     }
 
-    /* every row is as wide as the longest line, so backgrounds do not stop at the edge
-       of the visible area when scrolled sideways */
     .pb-diff-rows {
       width: max-content;
       min-width: 100%;
@@ -1479,7 +1442,6 @@ pb-app {
       white-space: pre;
     }
 
-    /* "Wrap": long lines break instead of scrolling sideways (also inside one long word) */
     .pb-diff.pb-wrap {
       .pb-diff-rows {
         width: auto;
@@ -1490,7 +1452,7 @@ pb-app {
       }
     }
   }
-  /* --- file picker: a field and a button, for files and for folders ------- */
+  
   pb-file-picker {
     display: flex;
     gap: var(--space-between-inline-items);
@@ -1510,7 +1472,6 @@ pb-app {
     }
   }
 
-  /* --- folder browser dialog (shares the picker dialog's look) ------------ */
   pb-file-browser dialog {
     width: min(560px, 92vw);
     height: min(520px, 86vh);
@@ -1533,7 +1494,7 @@ pb-app {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        direction: rtl; /* a long path keeps its end, the folder you are in, visible */
+        direction: rtl;
         text-align: left;
         color: var(--overlay-0);
       }

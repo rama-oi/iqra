@@ -4,21 +4,22 @@ import { pull, push, stashChanges, popStash } from "../api/git.js";
 import { toast } from "../lib/toast.js";
 import "./pb_view_switcher.js";
 
-// What each wired button does, and what it says when it worked. The changes they make
-// (commits, files, stashes) are announced with pb-history-change so every view reloads.
 const ACTIONS = {
   pull: { label: "Pull", done: "Pulled.", run: (repo) => pull({ repo }) },
   push: { label: "Push", done: "Pushed.", run: (repo) => push({ repo }) },
   stash: {
     label: "Stash changes",
     done: "Changes stashed.",
-    run: (repo) => stashChanges({ repo, branch: data.detached ? null : data.branch }),
+    run: (repo) =>
+      stashChanges({ repo, branch: data.detached ? null : data.branch }),
   },
-  pop: { label: "Pop the latest stash", done: "Stash applied.", run: (repo) => popStash({ repo }) },
+  pop: {
+    label: "Pop the latest stash",
+    done: "Stash applied.",
+    run: (repo) => popStash({ repo }),
+  },
 };
 
-// The buttons, in order. Those without an action above are not built yet: they are
-// shown disabled instead of looking broken when clicked.
 const BUTTONS = [
   { name: "restore", glyph: "arrow-left", label: "Undo" },
   { name: "redo", glyph: "arrow-right", label: "Redo" },
@@ -55,7 +56,6 @@ customElements.define(
       this.#sync();
     }
 
-    // The git actions need a project to act on, and one at a time.
     #sync() {
       for (const $btn of this.querySelectorAll("button[data-action]")) {
         $btn.disabled = this.#busy || !data.repository;
@@ -74,13 +74,16 @@ customElements.define(
         toast(action.done);
       } catch (err) {
         console.error(err);
-        toast(err.message || "Something went wrong, try again.", { error: true });
+        toast(err.message || "Something went wrong, try again.", {
+          error: true,
+        });
       } finally {
         this.#busy = false;
         this.removeAttribute("aria-busy");
         this.#sync();
-        // also after a failure: a pop that conflicted still changed the files
-        if (repo === data.repository) document.dispatchEvent(new CustomEvent("pb-history-change"));
+
+        if (repo === data.repository)
+          document.dispatchEvent(new CustomEvent("pb-history-change"));
       }
     }
   },

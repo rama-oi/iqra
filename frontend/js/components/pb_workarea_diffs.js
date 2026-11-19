@@ -6,8 +6,6 @@ import { load, save } from "../store/storage.js";
 
 const STATUS = { A: "added", M: "modified", D: "deleted" };
 
-// The changes of one file as a unified diff. Opens when a file is selected in the
-// commit panel (working tree) or in the preview panel (a commit); see getView().
 customElements.define(
   getPrefix("workarea-diffs"),
   class extends HTMLElement {
@@ -33,9 +31,10 @@ customElements.define(
       this.#initialized = true;
       this.innerHTML = this.#template;
 
-      this.querySelector(".pb-diff-close").addEventListener("click", () => setFile(null));
+      this.querySelector(".pb-diff-close").addEventListener("click", () =>
+        setFile(null),
+      );
 
-      // Long lines scroll sideways by default; "wrap" breaks them instead, and is remembered.
       const $wrap = this.querySelector(".pb-diff-wrap");
       const applyWrap = (wrap) => {
         $wrap.setAttribute("aria-pressed", String(wrap));
@@ -86,7 +85,8 @@ customElements.define(
     }
 
     #render(diff) {
-      if (diff.binary) return `<p class="pb-status">Binary file, no diff to show.</p>`;
+      if (diff.binary)
+        return `<p class="pb-status">Binary file, no diff to show.</p>`;
       const hunks = parseUnifiedDiff(diff.patch);
       if (!hunks.length) {
         return `<p class="pb-status">No changes in this ${escapeHtml(STATUS[diff.status] ?? "")} file.</p>`;

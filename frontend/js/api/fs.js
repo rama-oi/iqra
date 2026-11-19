@@ -1,11 +1,3 @@
-// The folders of the machine running the backend, for the folder picker. A browser
-// cannot read a folder's path, so the backend lists them.
-//
-// Backend contract:
-//   GET /api/fs?path=/abs/or/~/path&hidden=1
-//     -> { path, parent | null, home | null, isRepo, truncated,
-//          folders: [{ name, path, isRepo }] }      (folders only, sorted by name)
-//   no `path` starts at the home folder; errors answer { error: "text" }
 import MOCK from "./config.js";
 
 const delay = () => new Promise((resolve) => setTimeout(resolve, 100));
@@ -21,7 +13,11 @@ const MOCK_TREE = {
   "/home/me/Documents": [],
   "/home/me/.config": [],
 };
-const MOCK_REPOS = ["/home/me/Projects/iqra", "/home/me/Projects/fikret", "/home/me/Projects/mako-zero"];
+const MOCK_REPOS = [
+  "/home/me/Projects/iqra",
+  "/home/me/Projects/fikret",
+  "/home/me/Projects/mako-zero",
+];
 
 function mockListing(path, hidden) {
   const clean = path === "/" ? "/" : path.replace(/\/+$/, "");
@@ -30,13 +26,18 @@ function mockListing(path, hidden) {
   const join = (n) => (clean === "/" ? `/${n}` : `${clean}/${n}`);
   return {
     path: clean,
-    parent: clean === "/" ? null : clean.slice(0, clean.lastIndexOf("/")) || "/",
+    parent:
+      clean === "/" ? null : clean.slice(0, clean.lastIndexOf("/")) || "/",
     home: "/home/me",
     isRepo: MOCK_REPOS.includes(clean),
     truncated: false,
     folders: names
       .filter((n) => hidden || !n.startsWith("."))
-      .map((name) => ({ name, path: join(name), isRepo: MOCK_REPOS.includes(join(name)) })),
+      .map((name) => ({
+        name,
+        path: join(name),
+        isRepo: MOCK_REPOS.includes(join(name)),
+      })),
   };
 }
 

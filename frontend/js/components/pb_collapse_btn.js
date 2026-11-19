@@ -2,8 +2,6 @@ import { getPrefix } from "../lib/helpers.js";
 
 import data, { setPanelCollapsed } from "../api/data.js";
 
-// The thin bar on the inner edge of a sidebar. Clicking it collapses the
-// sidebar down to just this bar (hiding .pb-panel-content), and again expands it.
 customElements.define(
   getPrefix("collapse-btn"),
   class extends HTMLElement {
@@ -21,7 +19,6 @@ customElements.define(
       return this.closest("pb-sidebar-left, pb-sidebar-right");
     }
 
-    // "pb-sidebar-left" -> "left"
     get #side() {
       return this.#panel?.localName.replace("pb-sidebar-", "");
     }

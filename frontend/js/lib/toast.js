@@ -1,5 +1,3 @@
-// A short message at the bottom of the page, for the result of an action that has no
-// place of its own on screen (pull, push, stash...). Errors stay longer.
 const SHOW_MS = 3500;
 const SHOW_ERROR_MS = 8000;
 
@@ -8,7 +6,7 @@ function host() {
   if (!$host) {
     $host = document.createElement("div");
     $host.className = "pb-toasts";
-    (document.querySelector("pb-app") ?? document.body).append($host); // styles live under pb-app
+    (document.querySelector("pb-app") ?? document.body).append($host);
   }
   return $host;
 }

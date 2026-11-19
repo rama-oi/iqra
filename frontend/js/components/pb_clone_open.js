@@ -5,8 +5,6 @@ import "./pb_file_picker.js";
 
 const NAME_HINT = "taken from the folder";
 
-// Open > a git repository that is already in a folder (on the machine running the
-// backend), chosen with the folder picker or typed in.
 customElements.define(
   getPrefix("clone-open"),
   class extends HTMLElement {

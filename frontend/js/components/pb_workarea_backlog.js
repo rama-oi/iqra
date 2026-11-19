@@ -4,10 +4,12 @@ import data from "../api/data.js";
 import { matches } from "../lib/filter.js";
 
 const formatDate = (iso) =>
-  new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  new Date(iso).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 
-// Every issue of the current project. Each one is a <details>: the summary
-// shows the essentials, expanding it reveals the full text.
 customElements.define(
   getPrefix("workarea-backlog"),
   class extends HTMLElement {
@@ -60,7 +62,6 @@ customElements.define(
       }
     }
 
-    // Hide non-matching issues in place, so the ones already expanded stay expanded.
     #applyFilter() {
       const issues = this.#issues;
       if (!issues.length) return;
@@ -68,7 +69,15 @@ customElements.define(
       for (const el of this.querySelectorAll(".pb-issue")) {
         const i = issues[el.dataset.index];
         const hit = matches(
-          data.filter, `#${i.number}`, i.number, i.title, i.body, i.labels, i.author, i.assignee, i.state,
+          data.filter,
+          `#${i.number}`,
+          i.number,
+          i.title,
+          i.body,
+          i.labels,
+          i.author,
+          i.assignee,
+          i.state,
         );
         el.hidden = !hit;
         if (hit) shown++;
@@ -85,7 +94,9 @@ customElements.define(
       const labels = (issue.labels ?? [])
         .map((l) => `<span class="pb-label">${escapeHtml(l)}</span>`)
         .join("");
-      const assignee = issue.assignee ? ` · assigned to ${escapeHtml(issue.assignee)}` : "";
+      const assignee = issue.assignee
+        ? ` · assigned to ${escapeHtml(issue.assignee)}`
+        : "";
 
       return `
       <details class="pb-issue pb-${escapeHtml(issue.state)}" data-index="${index}">

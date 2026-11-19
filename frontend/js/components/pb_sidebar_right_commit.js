@@ -53,10 +53,13 @@ customElements.define(
         $status: $(".pb-status"),
       };
 
-      this.#html.$commit.addEventListener("click", () => this.#submit({ amend: false }));
-      this.#html.$amend.addEventListener("click", () => this.#submit({ amend: true }));
+      this.#html.$commit.addEventListener("click", () =>
+        this.#submit({ amend: false }),
+      );
+      this.#html.$amend.addEventListener("click", () =>
+        this.#submit({ amend: true }),
+      );
 
-      // Click a file to see its diff; click it again to close the diff.
       this.addEventListener("click", (e) => {
         const action = e.target.closest("button[data-action]");
         if (action) {
@@ -65,29 +68,39 @@ customElements.define(
         const btn = e.target.closest("button.pb-file[data-group]");
         if (!btn) return;
         const staged = btn.dataset.group === "staged";
-        const { path, status } = this.#files[btn.dataset.group][btn.dataset.index];
+        const { path, status } =
+          this.#files[btn.dataset.group][btn.dataset.index];
         const file = { path, status, staged };
         setFile(isSelectedFile(file) ? null : file);
       });
       document.addEventListener("pb-file-select", () => this.#markSelected());
 
-      for (const type of ["pb-repository-change", "pb-branch-change", "pb-history-change", "pb-changes-change"]) {
+      for (const type of [
+        "pb-repository-change",
+        "pb-branch-change",
+        "pb-history-change",
+        "pb-changes-change",
+      ]) {
         document.addEventListener(type, () => this.#load());
       }
       this.#load();
     }
 
-    // Stage or unstage one file: the button next to it.
     async #move(btn) {
       if (!data.repository) return;
       const group = btn.dataset.group;
       const path = this.#files[group][btn.dataset.index]?.path;
       if (path === undefined) return;
       try {
-        await (group === "staged" ? unstage : stage)({ repo: data.repository, paths: [path] });
+        await (group === "staged" ? unstage : stage)({
+          repo: data.repository,
+          paths: [path],
+        });
       } catch (err) {
         console.error(err);
-        toast(err.message || "Something went wrong, try again.", { error: true });
+        toast(err.message || "Something went wrong, try again.", {
+          error: true,
+        });
       }
       document.dispatchEvent(new CustomEvent("pb-changes-change"));
     }
@@ -106,25 +119,39 @@ customElements.define(
         for (const group of ["unstaged", "staged"]) this.#renderGroup(group);
         this.#markSelected();
 
-        // The open diff follows its file to the other list when it was staged or
-        // unstaged, and closes when the file is no longer a change (it was committed).
         const open = data.file;
         if (open && !open.commit) {
-          const here = files[open.staged ? "staged" : "unstaged"].some((f) => f.path === open.path);
-          const there = files[open.staged ? "unstaged" : "staged"].find((f) => f.path === open.path);
-          if (!here) setFile(there ? { path: there.path, status: there.status, staged: !open.staged } : null);
+          const here = files[open.staged ? "staged" : "unstaged"].some(
+            (f) => f.path === open.path,
+          );
+          const there = files[open.staged ? "unstaged" : "staged"].find(
+            (f) => f.path === open.path,
+          );
+          if (!here)
+            setFile(
+              there
+                ? {
+                    path: there.path,
+                    status: there.status,
+                    staged: !open.staged,
+                  }
+                : null,
+            );
         }
       } catch (err) {
         if (loadId !== this.#loadId) return;
         console.error(err);
-        this.querySelector(".pb-unstaged .pb-content").innerHTML = `<li class="pb-error">Could not load changes.</li>`;
+        this.querySelector(".pb-unstaged .pb-content").innerHTML =
+          `<li class="pb-error">Could not load changes.</li>`;
       }
     }
 
     #renderGroup(group) {
       const files = this.#files[group];
       const $details = this.querySelector(`.pb-${group}`);
-      $details.querySelector(".pb-count").textContent = files.length ? `(${files.length})` : "";
+      $details.querySelector(".pb-count").textContent = files.length
+        ? `(${files.length})`
+        : "";
       $details.querySelector(".pb-content").innerHTML = files.length
         ? files
             .map(
@@ -142,8 +169,13 @@ customElements.define(
 
     #markSelected() {
       for (const btn of this.querySelectorAll("button.pb-file[data-group]")) {
-        const { path, status } = this.#files[btn.dataset.group][btn.dataset.index];
-        const active = isSelectedFile({ path, status, staged: btn.dataset.group === "staged" });
+        const { path, status } =
+          this.#files[btn.dataset.group][btn.dataset.index];
+        const active = isSelectedFile({
+          path,
+          status,
+          staged: btn.dataset.group === "staged",
+        });
         btn.classList.toggle("pb-active", active);
         btn.setAttribute("aria-pressed", String(active));
       }
@@ -168,7 +200,6 @@ customElements.define(
       const subject = $subject.value.trim();
       const body = $body.value.trim();
 
-      // a new commit needs a message; an amend can keep the previous one
       if (!subject && (!amend || body)) {
         return this.#setStatus("Write a summary first.", true);
       }
@@ -185,11 +216,16 @@ customElements.define(
         });
         $subject.value = "";
         $body.value = "";
-        this.#setStatus(`${amend ? "Amended" : "Committed"} ${commit.hash.slice(0, 7)}.`);
+        this.#setStatus(
+          `${amend ? "Amended" : "Committed"} ${commit.hash.slice(0, 7)}.`,
+        );
         document.dispatchEvent(new CustomEvent("pb-history-change"));
       } catch (err) {
         console.error(err);
-        this.#setStatus(err.message || "Something went wrong, try again.", true);
+        this.#setStatus(
+          err.message || "Something went wrong, try again.",
+          true,
+        );
       } finally {
         this.#setBusy(false);
       }

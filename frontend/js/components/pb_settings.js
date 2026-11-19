@@ -5,8 +5,6 @@ import "./pb_settings_about.js";
 
 const TABS = ["ssh", "theme", "about"];
 
-// The dialog shell: tab navigation and open/close. Each tab is its own component
-// and a direct child of the dialog (the CSS shows the one matching data-tab).
 customElements.define(
   getPrefix("settings"),
   class extends HTMLElement {

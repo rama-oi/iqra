@@ -1,6 +1,11 @@
 import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
 import data, { setBranch } from "../api/data.js";
-import { fetchBranches, fetchRemoteBranches, deleteBranch, deleteRemoteBranch } from "../api/projects.js";
+import {
+  fetchBranches,
+  fetchRemoteBranches,
+  deleteBranch,
+  deleteRemoteBranch,
+} from "../api/projects.js";
 import { toast } from "../lib/toast.js";
 import { fetchStashes, dropStash } from "../api/stashes.js";
 
@@ -53,31 +58,41 @@ customElements.define(
 
         this.innerHTML = this.#template;
 
-        // Click a local branch to switch to it.
-        this.querySelector(".pb-local .pb-content").addEventListener("click", (e) => {
-          const btn = e.target.closest("button[data-branch]");
-          if (btn) setBranch(btn.dataset.branch, { detached: "detached" in btn.dataset });
-          const del = e.target.closest("button[data-delete]");
-          if (del) this.#delete(del.dataset.delete);
-        });
-        this.querySelector(".pb-remote .pb-content").addEventListener("click", (e) => {
-          const del = e.target.closest("button[data-delete-remote]");
-          if (del) this.#deleteRemote(del.dataset.deleteRemote);
-        });
-        this.querySelector(".pb-stashes .pb-content").addEventListener("click", (e) => {
-          const del = e.target.closest("button[data-drop]");
-          if (del) this.#drop(del.dataset.drop, del.dataset.label);
-        });
+        this.querySelector(".pb-local .pb-content").addEventListener(
+          "click",
+          (e) => {
+            const btn = e.target.closest("button[data-branch]");
+            if (btn)
+              setBranch(btn.dataset.branch, {
+                detached: "detached" in btn.dataset,
+              });
+            const del = e.target.closest("button[data-delete]");
+            if (del) this.#delete(del.dataset.delete);
+          },
+        );
+        this.querySelector(".pb-remote .pb-content").addEventListener(
+          "click",
+          (e) => {
+            const del = e.target.closest("button[data-delete-remote]");
+            if (del) this.#deleteRemote(del.dataset.deleteRemote);
+          },
+        );
+        this.querySelector(".pb-stashes .pb-content").addEventListener(
+          "click",
+          (e) => {
+            const del = e.target.closest("button[data-drop]");
+            if (del) this.#drop(del.dataset.drop, del.dataset.label);
+          },
+        );
         for (const type of ["pb-repository-change", "pb-branch-change"]) {
           document.addEventListener(type, () => this.#render());
         }
-        // pull, stash, pop and commit move branches, remotes and stashes
+
         document.addEventListener("pb-history-change", () => this.#load());
         this.#load();
       }
     }
 
-    // Fetched with the project and again after an action that changes them.
     async #load() {
       const loadId = ++this.#loadId;
       const repo = data.repository;
@@ -103,7 +118,12 @@ customElements.define(
           await deleteBranch({ repo, name });
         } catch (err) {
           if (!/not fully merged/i.test(err.message)) throw err;
-          if (!confirm(`"${name}" has commits that are not merged anywhere else.\nDelete it anyway? They may be lost.`)) return;
+          if (
+            !confirm(
+              `"${name}" has commits that are not merged anywhere else.\nDelete it anyway? They may be lost.`,
+            )
+          )
+            return;
           await deleteBranch({ repo, name, force: true });
         }
         toast(`Deleted ${name}.`);
@@ -115,19 +135,33 @@ customElements.define(
 
     async #deleteRemote(name) {
       const repo = data.repository;
-      if (!repo || !confirm(`Delete "${name}" on the remote?\nThis removes the branch for everyone who uses it.`)) return;
+      if (
+        !repo ||
+        !confirm(
+          `Delete "${name}" on the remote?\nThis removes the branch for everyone who uses it.`,
+        )
+      )
+        return;
       try {
         await deleteRemoteBranch({ repo, name });
         toast(`Deleted ${name}.`);
         document.dispatchEvent(new CustomEvent("pb-history-change"));
       } catch (err) {
-        toast(err.message || "Could not delete the remote branch.", { error: true });
+        toast(err.message || "Could not delete the remote branch.", {
+          error: true,
+        });
       }
     }
 
     async #drop(id, label) {
       const repo = data.repository;
-      if (!repo || !confirm(`Drop the stash "${label}"?\nIts changes are discarded without being applied.`)) return;
+      if (
+        !repo ||
+        !confirm(
+          `Drop the stash "${label}"?\nIts changes are discarded without being applied.`,
+        )
+      )
+        return;
       try {
         await dropStash({ repo, id });
         toast("Stash dropped.");
@@ -146,7 +180,7 @@ customElements.define(
         .map((b) => {
           const name = escapeHtml(b.name);
           const active = b.name === data.branch;
-          // the delete button is a sibling of the switch button, never inside it
+
           const del =
             active || b.isDetached
               ? ""
@@ -158,7 +192,8 @@ customElements.define(
       const x = (attr, value, what) =>
         `<button type="button" class="pb-delete-branch pb-danger" ${attr}="${escapeHtml(value)}" title="${escapeHtml(what)}" aria-label="${escapeHtml(what)}">${icon("trash")}</button>`;
 
-      this.querySelector(".pb-remote .pb-content").innerHTML = this.#remotes.length
+      this.querySelector(".pb-remote .pb-content").innerHTML = this.#remotes
+        .length
         ? this.#remotes
             .map(
               (b) =>
@@ -167,7 +202,8 @@ customElements.define(
             .join("")
         : `<li class="pb-empty">No remote branches.</li>`;
 
-      this.querySelector(".pb-stashes .pb-content").innerHTML = this.#stashes.length
+      this.querySelector(".pb-stashes .pb-content").innerHTML = this.#stashes
+        .length
         ? this.#stashes
             .map(
               (st) =>
@@ -176,6 +212,5 @@ customElements.define(
             .join("")
         : `<li class="pb-empty">No stashes.</li>`;
     }
-
   },
 );

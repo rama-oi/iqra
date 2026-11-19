@@ -1,13 +1,5 @@
 import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
 
-// A modal "pick one from a list" dialog with a filter box.
-//
-//   const id = await pickOne({
-//     title: "Switch project",
-//     items: [{ id, label, description? }] or a Promise of that,
-//     current: id,
-//   });
-//   // id is the chosen item's id, or null when dismissed.
 export function pickOne(options) {
   const picker = document.querySelector(getPrefix("picker"));
   if (!picker) throw new Error("<pb-picker> is missing from the page");
@@ -142,7 +134,7 @@ customElements.define(
 
     #onClick(e) {
       const dialog = this.#html.$dialog;
-      if (e.target === dialog) return dialog.close(); // backdrop
+      if (e.target === dialog) return dialog.close();
 
       const btn = e.target.closest("button");
       if (!btn) return;
@@ -151,7 +143,7 @@ customElements.define(
     }
 
     #onClose() {
-      this.#requestId++; // ignore a list that is still loading
+      this.#requestId++;
       const resolve = this.#resolve;
       this.#resolve = null;
       resolve?.(this.#choice);

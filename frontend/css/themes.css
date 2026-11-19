@@ -88,10 +88,21 @@
   --graph-7: #d20f39;
 }
 
-/* Accent: must stay after the theme blocks so it overrides their --accent. */
-.pb-accent-yellow { --accent: var(--yellow); }
-.pb-accent-mauve { --accent: var(--mauve); }
-.pb-accent-blue { --accent: var(--blue); }
-.pb-accent-red { --accent: var(--red); }
-.pb-accent-peach { --accent: var(--peach); }
-.pb-accent-green { --accent: var(--green); }
+.pb-accent-yellow {
+  --accent: var(--yellow);
+}
+.pb-accent-mauve {
+  --accent: var(--mauve);
+}
+.pb-accent-blue {
+  --accent: var(--blue);
+}
+.pb-accent-red {
+  --accent: var(--red);
+}
+.pb-accent-peach {
+  --accent: var(--peach);
+}
+.pb-accent-green {
+  --accent: var(--green);
+}

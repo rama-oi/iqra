@@ -15,7 +15,6 @@ const radios = (name, list) =>
     )
     .join("");
 
-// Settings > Theme. The radios mirror data.theme / data.accent.
 customElements.define(
   getPrefix("settings-theme"),
   class extends HTMLElement {

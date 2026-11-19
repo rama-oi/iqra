@@ -1,7 +1,6 @@
 import { getPrefix } from "../lib/helpers.js";
 import data from "../api/data.js";
 
-// The corner of the tab bar: the active identity's avatar, opens the settings.
 customElements.define(
   getPrefix("menu"),
   class extends HTMLElement {

@@ -6,8 +6,6 @@ import { renderGraphRow, avatarStyle, LANE_W } from "../graph/render-row.js";
 import data, { setCommit, refreshCommit } from "../api/data.js";
 import { matches } from "../lib/filter.js";
 
-// The working tree is the first row, drawn as a commit on top of HEAD. Selecting it shows
-// the commit form (data.commit === null), which is why it has no hash of its own.
 const WORKING = "working-changes";
 
 customElements.define(
@@ -17,7 +15,7 @@ customElements.define(
     #loadId = 0;
     #revealHead = false;
     #commits = new Map();
-    #changes = null; // number of changed files, null when unknown
+    #changes = null;
 
     #template = `
     <section class="pb-table-header">
@@ -41,7 +39,7 @@ customElements.define(
       this.#initialized = true;
       this.innerHTML = this.#template;
 
-      // Click a commit to preview it; click it again (or the working changes) to go back.
+    
       this.querySelector(".pb-table-body").addEventListener("click", (e) => {
         if (e.target.closest(".pb-row[data-working]")) return setCommit(null);
         const hash = e.target.closest(".pb-row[data-hash]")?.dataset.hash;
@@ -51,8 +49,8 @@ customElements.define(
       document.addEventListener("pb-commit-select", () => this.#markSelected());
       document.addEventListener("pb-filter-change", () => this.#applyFilter());
 
-      // After a checkout (or opening a project) the graph also scrolls to where HEAD is;
-      // after a pull or a commit it stays where the person was looking.
+    
+    
       for (const type of ["pb-repository-change", "pb-branch-change"]) {
         document.addEventListener(type, () => this.#load({ revealHead: true }));
       }
@@ -61,8 +59,8 @@ customElements.define(
     }
 
     async #load({ revealHead = false } = {}) {
-      // Remembered until a load completes: a checkout fires several events, and the later
-      // load supersedes the first, which must not lose the request.
+    
+    
       this.#revealHead ||= revealHead;
       const loadId = ++this.#loadId;
       const body = this.querySelector(".pb-table-body");
@@ -70,16 +68,16 @@ customElements.define(
       try {
         const [{ commits }, status] = await Promise.all([
           fetchCommits({ repo: data.repository, branch: data.branch }),
-          fetchStatus({ repo: data.repository }).catch(() => null), // only the count needs it
+          fetchStatus({ repo: data.repository }).catch(() => null),
         ]);
-        if (loadId !== this.#loadId) return; // a newer load superseded this one
+        if (loadId !== this.#loadId) return;
         const head = commits.find((c) => c.refs.some((r) => r.isHead)) ?? commits[0];
         const working = { hash: WORKING, parents: head ? [head.hash] : [], refs: [], isWorking: true };
         this.#changes = status ? status.staged.length + status.unstaged.length : null;
         const { rows, laneCount } = layoutGraph([working, ...commits]);
         this.#commits = new Map(commits.map((c) => [c.hash, c]));
 
-        // The selected commit may be gone (history rewritten elsewhere) or relabelled.
+      
         if (data.commit) {
           const fresh = this.#commits.get(data.commit.hash);
           if (fresh) refreshCommit(fresh);
@@ -92,7 +90,7 @@ customElements.define(
         this.#applyFilter();
         if (this.#revealHead) {
           this.#revealHead = false;
-          // scrolls the work area itself, never the whole page
+        
           body.querySelector(".pb-row.pb-current")?.scrollIntoView({ block: "nearest" });
         }
       } catch (err) {
@@ -102,7 +100,7 @@ customElements.define(
       }
     }
 
-    // Rows that don't match are dimmed rather than removed, so the graph stays connected.
+  
     #applyFilter() {
       for (const row of this.querySelectorAll(".pb-table-body .pb-row")) {
         const c = this.#commits.get(row.dataset.hash);
@@ -149,7 +147,7 @@ customElements.define(
         )
         .join("");
 
-      // "You are here": the commit HEAD is on, whether through a branch or detached
+    
       const current = commit.refs.some((r) => r.isHead);
       return `
       <button type="button" class="pb-row${current ? " pb-current" : ""}"${current ? ' data-current aria-current="true"' : ""} data-hash="${escapeHtml(commit.hash)}">

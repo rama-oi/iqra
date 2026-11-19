@@ -25,15 +25,12 @@ pb-app *::after {
 }
 
 .pb-icon {
-  /* Use !important to prevent extensions from overriding this font. */
   font-family: "iqra" !important;
   font-style: normal;
   font-weight: normal;
   font-variant: normal;
   text-transform: none;
   line-height: 1;
-
-  /* Better Font Rendering =========== */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -87,17 +84,6 @@ pb-app *::after {
   --graph-7: #f38ba8;
 }
 
-/* @font-face {
-  font-family: "pomboverso";
-  src:
-    url("../fonts/pomboverso.otf") format("otf"),
-    url("../fonts/pomboverso.ttf") format("truetype"),
-    url("../fonts/pomboverso.woff") format("woff");
-  font-weight: normal;
-  font-style: normal;
-  font-display: block;
-} */
-
 html,
 body {
   width: 100%;
@@ -110,8 +96,4 @@ body {
   font-weight: 400;
   color-scheme: dark;
   color: var(--text);
-
-  /* &:has([value="catppuccin-mocha"]:checked) {
- 
-  } */
 }

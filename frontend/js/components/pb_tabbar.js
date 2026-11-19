@@ -15,7 +15,6 @@ customElements.define(
       $next: undefined,
     };
 
-    // The arrows only show while the tabs do not fit (see #updateArrows).
     #template = `
       <pb-tab-add></pb-tab-add>
       <button type="button" class="pb-tabs-scroll pb-tabs-prev" aria-label="Scroll tabs left" title="Scroll tabs left" hidden>${icon("arrow-left")}</button>
@@ -36,8 +35,10 @@ customElements.define(
         const $tabs = this.#html.$tabs;
         this.#html.$prev.addEventListener("click", () => this.#scrollBy(-1));
         this.#html.$next.addEventListener("click", () => this.#scrollBy(1));
-        $tabs.addEventListener("scroll", () => this.#updateArrows(), { passive: true });
-        // a mouse wheel moves the strip sideways, as it does in a browser's tab bar
+        $tabs.addEventListener("scroll", () => this.#updateArrows(), {
+          passive: true,
+        });
+
         $tabs.addEventListener(
           "wheel",
           (e) => {
@@ -47,11 +48,15 @@ customElements.define(
           },
           { passive: false },
         );
-        // the room for tabs changes with the window, and with the menu next to them
+
         new ResizeObserver(() => this.#updateArrows()).observe($tabs);
 
-        this.#html.$tabs.addEventListener("pb-tab-select", (e) => selectTab(e.detail));
-        this.#html.$tabs.addEventListener("pb-tab-close", (e) => closeTab(e.detail));
+        this.#html.$tabs.addEventListener("pb-tab-select", (e) =>
+          selectTab(e.detail),
+        );
+        this.#html.$tabs.addEventListener("pb-tab-close", (e) =>
+          closeTab(e.detail),
+        );
         for (const type of ["pb-tabs-change", "pb-repository-change"]) {
           document.addEventListener(type, () => this.#render());
         }
@@ -70,7 +75,6 @@ customElements.define(
       this.#updateArrows();
     }
 
-    // Scrolls just the strip (not the page) so the open project's tab is not hidden.
     #revealActive() {
       const $tabs = this.#html.$tabs;
       const $active = $tabs.querySelector("pb-tab.pb-active");
@@ -78,12 +82,16 @@ customElements.define(
       const left = $active.offsetLeft - $tabs.offsetLeft;
       const right = left + $active.offsetWidth;
       if (left < $tabs.scrollLeft) $tabs.scrollLeft = left;
-      else if (right > $tabs.scrollLeft + $tabs.clientWidth) $tabs.scrollLeft = right - $tabs.clientWidth;
+      else if (right > $tabs.scrollLeft + $tabs.clientWidth)
+        $tabs.scrollLeft = right - $tabs.clientWidth;
     }
 
     #scrollBy(direction) {
       const $tabs = this.#html.$tabs;
-      $tabs.scrollBy({ left: direction * Math.max(120, $tabs.clientWidth * 0.6), behavior: "smooth" });
+      $tabs.scrollBy({
+        left: direction * Math.max(120, $tabs.clientWidth * 0.6),
+        behavior: "smooth",
+      });
     }
 
     #updateArrows() {
@@ -91,7 +99,8 @@ customElements.define(
       const overflowing = $tabs.scrollWidth > $tabs.clientWidth + 1;
       $prev.hidden = $next.hidden = !overflowing;
       $prev.disabled = $tabs.scrollLeft <= 0;
-      $next.disabled = $tabs.scrollLeft + $tabs.clientWidth >= $tabs.scrollWidth - 1;
+      $next.disabled =
+        $tabs.scrollLeft + $tabs.clientWidth >= $tabs.scrollWidth - 1;
     }
   },
 );
