@@ -122,14 +122,20 @@ pb-app {
       pointer-events: none;
     }
 
-    &.pb-danger:hover {
-      background-color: var(--danger);
-      color: var(--base);
+    &.pb-danger {
+      color: var(--text);
+      &:hover {
+        background-color: var(--danger);
+        color: var(--base);
+      }
     }
 
-    &.pb-success:hover {
-      background-color: var(--success);
-      color: var(--base);
+    &.pb-success {
+      color: var(--text);
+      &:hover {
+        background-color: var(--success);
+        color: var(--base);
+      }
     }
   }
 
@@ -445,7 +451,11 @@ pb-app {
         background-color: color-mix(in srgb, var(--accent) 14%, transparent);
 
         &.pb-selected {
-          background-color: color-mix(in srgb, var(--accent) 24%, var(--surface-1));
+          background-color: color-mix(
+            in srgb,
+            var(--accent) 24%,
+            var(--surface-1)
+          );
         }
 
         .pb-node {
