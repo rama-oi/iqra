@@ -16,6 +16,15 @@ customElements.define(
     #html = {};
 
     #template = `
+      <div class="pb-wrapper pb-flex-row">
+        <button class="pb-btn pb-btn-outline pb-stage-all" type="button" title="Stage All files">
+          Stage All
+        </button>
+        <button class="pb-btn pb-btn-outline pb-unstage-all" type="button" title="Unstage All files">
+          Unstage All
+        </button>
+      </div>
+
       <details class="pb-unstaged" open>
         <summary>Unstaged Files <span class="pb-count"></span></summary>
         <ul class="pb-content"></ul>
