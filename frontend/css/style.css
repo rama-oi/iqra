@@ -293,6 +293,16 @@ pb-app {
     }
   }
 
+  .pb-flex-row {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .pb-flex-column {
+    display: flex;
+    flex-direction: column;
+  }
+
   .pb-flex-separator {
     flex-grow: 1;
   }
