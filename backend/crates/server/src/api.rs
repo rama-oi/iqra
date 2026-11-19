@@ -31,6 +31,7 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/identities/{id}", delete(remove_identity))
         .route("/repos/{repo}/issues", get(issues))
         .route("/repos/{repo}/branches", get(branches).delete(delete_branch))
+        .route("/repos/{repo}/submodules", get(submodules))
         .route("/repos/{repo}/remote-branches", get(remote_branches).delete(delete_remote_branch))
         .route("/repos/{repo}/stage", post(stage))
         .route("/repos/{repo}/unstage", post(unstage))
@@ -218,7 +219,7 @@ async fn commit(State(state): Shared, Path(repo): Path<String>, ApiJson(body): A
             let head = r.head_branch();
             if head.as_deref() != Some(want) {
                 return Err(iqra_core::Error::Conflict(format!(
-                    "The repository is on {}, not {want}. Switch branches in a terminal first.",
+                    "The repository is on {}, not {want}. Switch to it first.",
                     head.as_deref().unwrap_or("no branch")
                 )));
             }
@@ -286,15 +287,21 @@ struct CheckoutBody {
     /// ...or a commit hash, which detaches HEAD there. Exactly one of the two.
     #[serde(default)]
     commit: Option<String>,
+    /// ...or a remote branch ("origin/x"), which gets a local tracking branch.
+    #[serde(default)]
+    remote: Option<String>,
 }
 
 async fn checkout(State(state): Shared, Path(repo): Path<String>, ApiJson(body): ApiJson<CheckoutBody>) -> Reply {
     let current = blocking(move || {
         let r = open_repo_blocking(&state, &repo)?;
-        match (body.branch.as_deref(), body.commit.as_deref()) {
-            (Some(branch), None) => iqra_core::checkout(r.path(), branch, false)?,
-            (None, Some(commit)) => iqra_core::checkout(r.path(), commit, true)?,
-            _ => return Err(iqra_core::Error::Invalid("Say either a branch or a commit.".into())),
+        match (body.branch.as_deref(), body.commit.as_deref(), body.remote.as_deref()) {
+            (Some(branch), None, None) => iqra_core::checkout(r.path(), branch, false)?,
+            (None, Some(commit), None) => iqra_core::checkout(r.path(), commit, true)?,
+            (None, None, Some(remote)) => {
+                iqra_core::checkout_remote(r.path(), remote)?;
+            }
+            _ => return Err(iqra_core::Error::Invalid("Say either a branch, a commit or a remote branch.".into())),
         }
         Ok(open_repo_blocking(&state, &repo)?.head_branch())
     })
@@ -344,6 +351,11 @@ struct IdQuery {
 async fn drop_stash(State(state): Shared, Path(repo): Path<String>, ApiQuery(q): ApiQuery<IdQuery>) -> Reply {
     blocking(move || iqra_core::stash_drop(open_repo_blocking(&state, &repo)?.path(), &q.id)).await?;
     Ok(Json(json!({})))
+}
+
+async fn submodules(State(state): Shared, Path(repo): Path<String>) -> Reply {
+    let list = blocking(move || open_repo_blocking(&state, &repo)?.submodules()).await?;
+    Ok(Json(json!({ "submodules": list })))
 }
 
 async fn remote_branches(State(state): Shared, Path(repo): Path<String>) -> Reply {

@@ -27,9 +27,10 @@ export async function fetchCommits({ repo, branch, limit = 200, cursor } = {}) {
   return res.json();
 }
 
-export async function checkout({ repo, branch, commit }) {
+export async function checkout({ repo, branch, commit, remote }) {
   if (USE_MOCK) {
     await delay(200);
+    if (remote) branch = remote.slice(remote.indexOf("/") + 1);
     for (const c of mockStore.commits) {
       c.refs = c.refs.filter((r) => r.type !== "head");
       for (const r of c.refs) if (r.type === "branch") r.isHead = r.name === branch && !commit;
@@ -41,7 +42,7 @@ export async function checkout({ repo, branch, commit }) {
   const res = await fetch(`/api/repos/${encodeURIComponent(repo)}/checkout`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(branch ? { branch } : { commit }),
+    body: JSON.stringify(remote ? { remote } : branch ? { branch } : { commit }),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || `Checkout failed (${res.status})`);

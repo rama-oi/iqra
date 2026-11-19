@@ -306,9 +306,8 @@ pub fn stash_drop(repo: &Path, id: &str) -> Result<()> {
     run(cmd)
 }
 
-/// Deletes a branch on its remote (`git push <remote> --delete <branch>`); `name` is
-/// the remote-tracking name as listed, like `origin/feature/x`.
-pub fn delete_remote_branch(repo: &Path, name: &str, ssh: Ssh<'_>) -> Result<()> {
+/// Splits a remote-tracking name like `origin/feature/x` into its remote and branch.
+fn split_remote_branch(repo: &Path, name: &str) -> Result<(String, String)> {
     let name = name.trim();
     if name.is_empty() || name.starts_with('-') || name.chars().any(|c| c.is_control()) {
         return Err(Error::Invalid("That is not a remote branch.".into()));
@@ -320,12 +319,37 @@ pub fn delete_remote_branch(repo: &Path, name: &str, ssh: Ssh<'_>) -> Result<()>
         .filter(|r| name.strip_prefix(*r).is_some_and(|rest| rest.starts_with('/') && rest.len() > 1))
         .max_by_key(|r| r.len())
         .map(|r| (r.to_string(), name[r.len() + 1..].to_string()));
-    let Some((remote, branch)) = found else {
-        return Err(Error::Invalid("That is not a remote branch.".into()));
-    };
-    if branch == "HEAD" {
-        return Err(Error::Invalid("That is not a remote branch.".into()));
+    match found {
+        Some((_, branch)) if branch == "HEAD" => Err(Error::Invalid("That is not a remote branch.".into())),
+        Some(pair) => Ok(pair),
+        None => Err(Error::Invalid("That is not a remote branch.".into())),
     }
+}
+
+/// Checks out a remote branch (`origin/feature/x`): the first time as a new local
+/// branch that tracks it, later by switching to that local branch. Returns its name.
+pub fn checkout_remote(repo: &Path, name: &str) -> Result<String> {
+    let (_, branch) = split_remote_branch(repo, name)?;
+    let exists = git_in(repo)
+        .args(["show-ref", "--verify", "--quiet"])
+        .arg(format!("refs/heads/{branch}"))
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    let mut cmd = git_in(repo);
+    if exists {
+        cmd.arg("checkout").arg(&branch).arg("--");
+    } else {
+        cmd.args(["checkout", "--track"]).arg(name.trim());
+    }
+    run(cmd)?;
+    Ok(branch)
+}
+
+/// Deletes a branch on its remote (`git push <remote> --delete <branch>`); `name` is
+/// the remote-tracking name as listed, like `origin/feature/x`.
+pub fn delete_remote_branch(repo: &Path, name: &str, ssh: Ssh<'_>) -> Result<()> {
+    let (remote, branch) = split_remote_branch(repo, name)?;
     run_remote(ssh, |ssh| {
         let mut cmd = git_in(repo);
         cmd.args(["push", "--delete"]).arg(&remote).arg("--").arg(&branch);

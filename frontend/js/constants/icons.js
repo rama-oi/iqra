@@ -5,7 +5,6 @@ export const ICONS = {
   minus: "-",
   plus: "+",
   times: "×",
-  code: ">",
   "download-alt": "⇓",
   "upload-alt": "⇑",
   branch: "\u{1f331}",

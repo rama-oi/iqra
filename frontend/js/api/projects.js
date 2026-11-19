@@ -203,3 +203,13 @@ export async function openLocalProject({ path, name }) {
   }
   return (await res.json()).project;
 }
+
+export async function fetchSubmodules(repo) {
+  if (USE_MOCK) {
+    await delay();
+    return [];
+  }
+  const res = await fetch(`/api/repos/${encodeURIComponent(repo)}/submodules`);
+  if (!res.ok) throw new Error(`Failed to load submodules (${res.status})`);
+  return (await res.json()).submodules;
+}

@@ -9,7 +9,7 @@ use git2::{
 use crate::time::iso8601_utc;
 use crate::{
     Author, Branch, Commit, CommitsPage, Error, FileChange, FileDiff, Project, RefKind, RefLabel,
-    Result, Stash, Status, display_path,
+    Result, Stash, Status, Submodule, display_path,
 };
 
 /// A commit lists the files it changed; a commit that touched thousands is cut here.
@@ -167,6 +167,27 @@ impl Repo {
             .collect();
         names.sort();
         Ok(names)
+    }
+
+    /// The submodules the project declares in `.gitmodules`.
+    pub fn submodules(&self) -> Result<Vec<Submodule>> {
+        let mut list: Vec<Submodule> = self
+            .inner
+            .submodules()?
+            .iter()
+            .map(|m| {
+                let path = m.path().to_string_lossy().into_owned();
+                let initialized = self.inner.workdir().is_some_and(|w| w.join(&path).join(".git").exists());
+                Submodule {
+                    name: m.name().unwrap_or(&path).to_string(),
+                    url: m.url().ok().flatten().map(str::to_string).unwrap_or_default(),
+                    path,
+                    initialized,
+                }
+            })
+            .collect();
+        list.sort_by(|a, b| a.path.cmp(&b.path));
+        Ok(list)
     }
 
     /// Every branch, remote branch and tag, keyed by the commit it points at.

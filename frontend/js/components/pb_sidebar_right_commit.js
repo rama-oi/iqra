@@ -16,14 +16,16 @@ customElements.define(
     #html = {};
 
     #template = `
-      <div class="pb-wrapper pb-flex-row">
-        <button class="pb-btn pb-btn-outline pb-stage-all" type="button" title="Stage All files">
+      <div class="pb-wrapper">
+        <button class="pb-btn pb-stage-all" type="button" title="Stage All files">
           Stage All
         </button>
         <button class="pb-btn pb-btn-outline pb-unstage-all" type="button" title="Unstage All files">
           Unstage All
         </button>
       </div>
+
+      <hr>
 
       <details class="pb-unstaged" open>
         <summary>Unstaged Files <span class="pb-count"></span></summary>
@@ -69,6 +71,13 @@ customElements.define(
         this.#submit({ amend: true }),
       );
 
+      this.querySelector(".pb-stage-all").addEventListener("click", () =>
+        this.#moveAll("unstaged"),
+      );
+      this.querySelector(".pb-unstage-all").addEventListener("click", () =>
+        this.#moveAll("staged"),
+      );
+
       this.addEventListener("click", (e) => {
         const action = e.target.closest("button[data-action]");
         if (action) {
@@ -95,15 +104,26 @@ customElements.define(
       this.#load();
     }
 
+    // Stage every unstaged file, or unstage every staged one.
+    async #moveAll(group) {
+      const paths = this.#files[group].map((f) => f.path);
+      if (!data.repository || !paths.length) return;
+      await this.#run(group, paths);
+    }
+
     async #move(btn) {
       if (!data.repository) return;
       const group = btn.dataset.group;
       const path = this.#files[group][btn.dataset.index]?.path;
       if (path === undefined) return;
+      await this.#run(group, [path]);
+    }
+
+    async #run(group, paths) {
       try {
         await (group === "staged" ? unstage : stage)({
           repo: data.repository,
-          paths: [path],
+          paths,
         });
       } catch (err) {
         console.error(err);

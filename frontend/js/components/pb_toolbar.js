@@ -28,7 +28,6 @@ const BUTTONS = [
   { name: "branch", glyph: "branch", label: "New branch" },
   { name: "stash", glyph: "download-alt", label: ACTIONS.stash.label },
   { name: "pop", glyph: "upload-alt", label: ACTIONS.pop.label },
-  { name: "terminal", glyph: "code", label: "Terminal" },
 ];
 
 customElements.define(

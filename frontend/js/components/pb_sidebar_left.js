@@ -3,9 +3,11 @@ import data, { setBranch } from "../api/data.js";
 import {
   fetchBranches,
   fetchRemoteBranches,
+  fetchSubmodules,
   deleteBranch,
   deleteRemoteBranch,
 } from "../api/projects.js";
+import { checkout } from "../api/commits.js";
 import { toast } from "../lib/toast.js";
 import { fetchStashes, dropStash } from "../api/stashes.js";
 
@@ -19,6 +21,7 @@ customElements.define(
     #loadId = 0;
     #branches = [];
     #stashes = [];
+    #submodules = [];
     #remotes = [];
     #repository = data.repository;
 
@@ -62,10 +65,8 @@ customElements.define(
           "click",
           (e) => {
             const btn = e.target.closest("button[data-branch]");
-            if (btn)
-              setBranch(btn.dataset.branch, {
-                detached: "detached" in btn.dataset,
-              });
+            if (btn && !("detached" in btn.dataset))
+              this.#switchTo({ branch: btn.dataset.branch });
             const del = e.target.closest("button[data-delete]");
             if (del) this.#delete(del.dataset.delete);
           },
@@ -73,6 +74,8 @@ customElements.define(
         this.querySelector(".pb-remote .pb-content").addEventListener(
           "click",
           (e) => {
+            const btn = e.target.closest("button[data-remote]");
+            if (btn) this.#switchTo({ remote: btn.dataset.remote });
             const del = e.target.closest("button[data-delete-remote]");
             if (del) this.#deleteRemote(del.dataset.deleteRemote);
           },
@@ -96,18 +99,32 @@ customElements.define(
     async #load() {
       const loadId = ++this.#loadId;
       const repo = data.repository;
-      const [branches, stashes, remotes] = repo
+      const [branches, stashes, remotes, submodules] = repo
         ? await Promise.all([
             fetchBranches(repo).catch(() => []),
             fetchStashes(repo).catch(() => []),
             fetchRemoteBranches(repo).catch(() => []),
+            fetchSubmodules(repo).catch(() => []),
           ])
-        : [[], [], []];
+        : [[], [], [], []];
       if (loadId !== this.#loadId) return;
+      this.#submodules = submodules;
       this.#branches = branches;
       this.#stashes = stashes;
       this.#remotes = remotes;
       this.#render();
+    }
+
+    async #switchTo({ branch, remote }) {
+      const repo = data.repository;
+      if (!repo || (branch && branch === data.branch && !data.detached)) return;
+      try {
+        const { currentBranch } = await checkout({ repo, branch, remote });
+        setBranch(currentBranch ?? branch);
+        document.dispatchEvent(new CustomEvent("pb-history-change"));
+      } catch (err) {
+        toast(err.message || "Could not switch branches.", { error: true });
+      }
     }
 
     async #delete(name) {
@@ -197,10 +214,20 @@ customElements.define(
         ? this.#remotes
             .map(
               (b) =>
-                `<li class="pb-branch" title="${escapeHtml(b.name)}"><span class="pb-ref-name">${ICON_BRANCH}${escapeHtml(b.name)}</span>${x("data-delete-remote", b.name, `Delete ${b.name} on the remote`)}</li>`,
+                `<li class="pb-branch"><button type="button" data-remote="${escapeHtml(b.name)}" title="Check out ${escapeHtml(b.name)}">${ICON_BRANCH}${escapeHtml(b.name)}</button>${x("data-delete-remote", b.name, `Delete ${b.name} on the remote`)}</li>`,
             )
             .join("")
         : `<li class="pb-empty">No remote branches.</li>`;
+
+      this.querySelector(".pb-submodules .pb-content").innerHTML = this
+        .#submodules.length
+        ? this.#submodules
+            .map(
+              (m) =>
+                `<li class="pb-ref" title="${escapeHtml(`${m.url}${m.initialized ? "" : " (not cloned)"}`)}">${ICON_BRANCH}${escapeHtml(m.path)}${m.initialized ? "" : ` <span class="pb-hint">not cloned</span>`}</li>`,
+            )
+            .join("")
+        : `<li class="pb-empty">No submodules.</li>`;
 
       this.querySelector(".pb-stashes .pb-content").innerHTML = this.#stashes
         .length

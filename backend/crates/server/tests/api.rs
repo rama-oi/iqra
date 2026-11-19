@@ -613,3 +613,60 @@ async fn stashes_are_dropped_and_remote_branches_are_deleted_on_their_remote() {
     assert_eq!(s, StatusCode::OK, "{j}");
     assert!(!remote(&get(&e.app, "/api/repos/demo/remote-branches").await.1).contains(&"origin/old/topic".to_string()));
 }
+
+#[tokio::test]
+async fn submodules_are_listed_with_their_state() {
+    let e = env();
+    open_demo(&e).await;
+    let (s, j) = get(&e.app, "/api/repos/demo/submodules").await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(j["submodules"], json!([]));
+
+    // a declared submodule whose folder was never cloned
+    let dir = e.repo.path();
+    std::fs::write(
+        dir.join(".gitmodules"),
+        "[submodule \"libs/util\"]\n\tpath = libs/util\n\turl = git@example.com:o/util.git\n",
+    )
+    .unwrap();
+    git(dir, &["update-index", "--add", "--cacheinfo", "160000,1111111111111111111111111111111111111111,libs/util"]);
+    let (s, j) = get(&e.app, "/api/repos/demo/submodules").await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert_eq!(j["submodules"][0]["path"], "libs/util");
+    assert_eq!(j["submodules"][0]["url"], "git@example.com:o/util.git");
+    assert_eq!(j["submodules"][0]["initialized"], false);
+}
+
+#[tokio::test]
+async fn a_remote_branch_is_checked_out_as_a_tracking_branch() {
+    let e = env();
+    open_demo(&e).await;
+    let dir = e.repo.path();
+    let origin = tempfile::tempdir().unwrap();
+    git(origin.path(), &["init", "-q", "--bare"]);
+    git(dir, &["remote", "add", "origin", origin.path().to_str().unwrap()]);
+    git(dir, &["checkout", "-q", "-b", "pr/1"]);
+    std::fs::write(dir.join("pr.txt"), "from a pr").unwrap();
+    git(dir, &["add", "pr.txt"]);
+    git(dir, &["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "pr work"]);
+    git(dir, &["push", "-q", "origin", "pr/1"]);
+    git(dir, &["checkout", "-q", "main"]);
+    git(dir, &["branch", "-q", "-D", "pr/1"]);
+    git(dir, &["fetch", "-q", "origin"]);
+
+    let (s, _, j, _) = call(&e.app, "POST", "/api/repos/demo/checkout", &[], Some(json!({ "remote": "origin/pr/1" }))).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert_eq!(j["currentBranch"], "pr/1");
+    assert!(dir.join("pr.txt").exists());
+
+    // the second time the local branch simply comes back
+    git(dir, &["checkout", "-q", "main"]);
+    let (s, _, j, _) = call(&e.app, "POST", "/api/repos/demo/checkout", &[], Some(json!({ "remote": "origin/pr/1" }))).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert_eq!(j["currentBranch"], "pr/1");
+
+    let (s, ..) = call(&e.app, "POST", "/api/repos/demo/checkout", &[], Some(json!({ "remote": "--detach" }))).await;
+    assert_eq!(s, StatusCode::BAD_REQUEST);
+    let (s, ..) = call(&e.app, "POST", "/api/repos/demo/checkout", &[], Some(json!({ "remote": "origin/HEAD" }))).await;
+    assert_eq!(s, StatusCode::BAD_REQUEST);
+}

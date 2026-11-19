@@ -112,3 +112,14 @@ pub struct Stash {
     pub branch: String,
     pub created_at: String,
 }
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Submodule {
+    pub name: String,
+    /// Folder of the submodule, relative to the project.
+    pub path: String,
+    pub url: String,
+    /// Whether its folder has been cloned (`git submodule update --init`).
+    pub initialized: bool,
+}
