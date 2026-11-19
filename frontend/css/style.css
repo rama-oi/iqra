@@ -123,10 +123,10 @@ pb-app {
     }
 
     &.pb-danger {
-      color: var(--text) !important;
+      color: var(--text);
       &:hover {
         background-color: var(--danger);
-        color: var(--base) !important;
+        color: var(--base);
       }
     }
 
@@ -289,7 +289,14 @@ pb-app {
 
     .pb-icon {
       font-size: 0.7rem;
-      color: var(--accent);
+    }
+
+    li {
+      > :first-child {
+        .pb-icon {
+          color: var(--accent);
+        }
+      }
     }
   }
 
