@@ -45,6 +45,8 @@ customElements.define(
           </button>
         </div>
 
+        <hr>
+
         <p class="pb-hash"></p>
 
         <div class="pb-user">
