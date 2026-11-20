@@ -111,6 +111,11 @@ pub struct Stash {
     pub message: String,
     pub branch: String,
     pub created_at: String,
+    /// The commit git keeps the stashed state in; its diff against its first parent is
+    /// what the stash holds, so the commit diff views can show it.
+    pub hash: String,
+    pub short_hash: String,
+    pub files: Vec<FileChange>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]

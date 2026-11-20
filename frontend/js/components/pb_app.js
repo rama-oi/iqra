@@ -6,6 +6,7 @@ import { refreshApp } from "../api/refresh.js";
 import "./pb_avatar.js";
 import "./pb_collapse_btn.js";
 import "./pb_picker.js";
+import "./pb_modal.js";
 import "./pb_file_picker.js";
 import "./pb_clone.js";
 
@@ -35,6 +36,7 @@ customElements.define(
 
       <pb-settings></pb-settings>
       <pb-picker></pb-picker>
+      <pb-modal></pb-modal>
       <pb-file-browser></pb-file-browser>
       <pb-clone></pb-clone>
     `;

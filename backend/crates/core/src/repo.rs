@@ -430,12 +430,19 @@ impl Repo {
             .into_iter()
             .map(|(index, message, oid)| {
                 let (branch, message) = parse_stash_message(&message);
-                let created = self.inner.find_commit(oid)?.time().seconds();
+                let commit = self.inner.find_commit(oid)?;
+                let tree = commit.tree()?;
+                let base = commit.parent(0).ok().map(|p| p.tree()).transpose()?;
+                let diff = self.inner.diff_tree_to_tree(base.as_ref(), Some(&tree), None)?;
+                let hash = oid.to_string();
                 Ok(Stash {
                     id: format!("stash@{{{index}}}"),
                     message,
                     branch,
-                    created_at: iso8601_utc(created),
+                    created_at: iso8601_utc(commit.time().seconds()),
+                    short_hash: hash[..7].to_string(),
+                    hash,
+                    files: changes(&diff, MAX_FILES_PER_COMMIT),
                 })
             })
             .collect()

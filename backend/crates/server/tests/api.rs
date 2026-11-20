@@ -843,3 +843,78 @@ async fn the_backlog_asks_github_for_one_page_and_says_whether_more_follow() {
     assert_eq!(j["nextPage"], 4);
     assert!(seen.recv().unwrap().contains("page=3"));
 }
+
+#[tokio::test]
+async fn a_commit_is_cherry_picked_onto_the_checked_out_branch() {
+    let e = env();
+    open_demo(&e).await;
+    let dir = e.repo.path();
+    git(dir, &["config", "user.name", "t"]);
+    git(dir, &["config", "user.email", "t@t"]);
+    git(dir, &["checkout", "-q", "-b", "other", "main"]);
+    commit_file(dir, "picked.txt", "p\n");
+    let hash = String::from_utf8_lossy(&std::process::Command::new("git").arg("-C").arg(dir).args(["rev-parse", "HEAD"]).output().unwrap().stdout).trim().to_string();
+    git(dir, &["checkout", "-q", "main"]);
+    let pick = |h: &str| call(&e.app, "POST", "/api/repos/demo/cherry-pick", &[], Some(json!({ "commit": h })));
+
+    // changed files come first
+    std::fs::write(dir.join("scratch.txt"), "x").unwrap();
+    let (s, _, j, _) = pick(&hash).await;
+    assert_eq!(s, StatusCode::CONFLICT);
+    assert!(j["error"].as_str().unwrap().contains("do something with your changed files"), "{j}");
+    std::fs::remove_file(dir.join("scratch.txt")).unwrap();
+
+    let (s, _, j, _) = pick(&hash).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert!(dir.join("picked.txt").exists());
+
+    // the same change again is empty
+    let (s, _, j, _) = pick(&hash).await;
+    assert_eq!(s, StatusCode::CONFLICT, "{j}");
+    assert!(j["error"].as_str().unwrap().contains("already in this branch"), "{j}");
+
+    for bad in ["--abort", "zzzzzzz", "deadbeefdeadbeef"] {
+        let (s, ..) = pick(bad).await;
+        assert!(s == StatusCode::BAD_REQUEST || s == StatusCode::NOT_FOUND, "{bad} -> {s}");
+    }
+}
+
+#[tokio::test]
+async fn a_cherry_pick_that_conflicts_is_given_up_cleanly() {
+    let e = env();
+    open_demo(&e).await;
+    let dir = e.repo.path();
+    git(dir, &["config", "user.name", "t"]);
+    git(dir, &["config", "user.email", "t@t"]);
+    commit_file(dir, "clash.txt", "base\n");
+    git(dir, &["checkout", "-q", "-b", "other"]);
+    commit_file(dir, "clash.txt", "other\n");
+    let hash = String::from_utf8_lossy(&std::process::Command::new("git").arg("-C").arg(dir).args(["rev-parse", "HEAD"]).output().unwrap().stdout).trim().to_string();
+    git(dir, &["checkout", "-q", "main"]);
+    commit_file(dir, "clash.txt", "main\n");
+    let (s, _, j, _) = call(&e.app, "POST", "/api/repos/demo/cherry-pick", &[], Some(json!({ "commit": hash }))).await;
+    assert_eq!(s, StatusCode::CONFLICT, "{j}");
+    assert!(j["error"].as_str().unwrap().contains("clash.txt"), "{j}");
+    assert!(!dir.join(".git/CHERRY_PICK_HEAD").exists());
+    assert_eq!(std::fs::read_to_string(dir.join("clash.txt")).unwrap(), "main\n");
+}
+
+#[tokio::test]
+async fn a_stash_lists_its_files_and_its_diff_can_be_read_by_its_hash() {
+    let e = env();
+    open_demo(&e).await;
+    let dir = e.repo.path();
+    std::fs::write(dir.join("a.txt"), "stashed change\n").unwrap();
+    git(dir, &["stash", "push", "-m", "preview me"]);
+    let (s, j) = get(&e.app, "/api/repos/demo/stashes").await;
+    assert_eq!(s, StatusCode::OK);
+    let stash = &j["stashes"][0];
+    let hash = stash["hash"].as_str().unwrap();
+    assert_eq!(hash.len(), 40);
+    assert_eq!(stash["shortHash"], &hash[..7]);
+    assert_eq!(stash["files"], json!([{ "path": "a.txt", "status": "M" }]));
+
+    let (s, j) = get(&e.app, &format!("/api/repos/demo/diff?path=a.txt&commit={hash}")).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert!(j["patch"].as_str().unwrap().contains("+stashed change"), "{j}");
+}

@@ -84,3 +84,14 @@ export async function mergeBranches({ repo, source, target }) {
   }
   return post(repo, "merge", { source, target });
 }
+
+// Apply one commit's changes on top of the checked-out branch, as a new commit. With
+// changed files in the project, or on conflicts, the answer is an error saying so.
+//   POST /api/repos/:repo/cherry-pick { commit }
+export async function cherryPick({ repo, commit }) {
+  if (MOCK.changes) {
+    await delay();
+    return {};
+  }
+  return post(repo, "cherry-pick", { commit });
+}

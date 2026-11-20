@@ -1,5 +1,5 @@
 import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
-import data, { setBranch } from "../api/data.js";
+import data, { setBranch, setCommit } from "../api/data.js";
 import {
   fetchBranches,
   fetchRemoteBranches,
@@ -9,6 +9,7 @@ import {
 } from "../api/projects.js";
 import { checkout } from "../api/commits.js";
 import { toast } from "../lib/toast.js";
+import { confirmModal } from "./pb_modal.js";
 import { fetchStashes, dropStash } from "../api/stashes.js";
 
 const ICON_BRANCH = icon("branch");
@@ -83,6 +84,8 @@ customElements.define(
         this.querySelector(".pb-stashes .pb-content").addEventListener(
           "click",
           (e) => {
+            const view = e.target.closest("button[data-stash]");
+            if (view) this.#previewStash(Number(view.dataset.stash));
             const del = e.target.closest("button[data-drop]");
             if (del) this.#drop(del.dataset.drop, del.dataset.label);
           },
@@ -92,6 +95,7 @@ customElements.define(
         }
 
         document.addEventListener("pb-history-change", () => this.#load());
+        document.addEventListener("pb-commit-select", () => this.#markStash());
         this.#load();
       }
     }
@@ -112,6 +116,9 @@ customElements.define(
       this.#branches = branches;
       this.#stashes = stashes;
       this.#remotes = remotes;
+      // a stash that was dropped or applied cannot stay on show
+      if (data.commit?.isStash && !stashes.some((st) => st.hash === data.commit.hash))
+        setCommit(null);
       this.#render();
     }
 
@@ -127,65 +134,96 @@ customElements.define(
       }
     }
 
+    // Shows what a stash holds in the preview panel, like a commit: its files, and the
+    // diff of each. Clicking it again closes the preview.
+    #previewStash(index) {
+      const st = this.#stashes[index];
+      if (!st?.hash) return;
+      if (data.commit?.hash === st.hash) return setCommit(null);
+      setCommit({
+        hash: st.hash,
+        shortHash: st.shortHash,
+        parents: [],
+        refs: [],
+        message: st.message,
+        author: { name: `Stash on ${st.branch}`, avatarUrl: null },
+        committedAt: st.createdAt,
+        files: st.files ?? [],
+        isStash: true,
+        stashId: st.id,
+      });
+    }
+
+    #markStash() {
+      this.querySelectorAll(".pb-stashes button[data-stash]").forEach((btn) => {
+        const st = this.#stashes[btn.dataset.stash];
+        const active = !!st?.hash && st.hash === data.commit?.hash;
+        btn.classList.toggle("pb-active", active);
+        btn.setAttribute("aria-pressed", String(active));
+      });
+    }
+
+    #changed(message) {
+      toast(message);
+      document.dispatchEvent(new CustomEvent("pb-history-change"));
+    }
+
     async #delete(name) {
       const repo = data.repository;
-      if (!repo || !confirm(`Delete the branch "${name}"?`)) return;
-      try {
-        try {
-          await deleteBranch({ repo, name });
-        } catch (err) {
-          if (!/not fully merged/i.test(err.message)) throw err;
-          if (
-            !confirm(
-              `"${name}" has commits that are not merged anywhere else.\nDelete it anyway? They may be lost.`,
-            )
-          )
-            return;
-          await deleteBranch({ repo, name, force: true });
-        }
-        toast(`Deleted ${name}.`);
-        document.dispatchEvent(new CustomEvent("pb-history-change"));
-      } catch (err) {
-        toast(err.message || "Could not delete the branch.", { error: true });
-      }
+      if (!repo) return;
+      let unmerged = false;
+      const done = await confirmModal({
+        title: "Delete branch",
+        message: `Delete the branch "${name}"?`,
+        confirmLabel: "Delete",
+        danger: true,
+        action: async () => {
+          try {
+            await deleteBranch({ repo, name });
+          } catch (err) {
+            // git keeps unmerged work unless told otherwise: ask again below
+            if (!/not fully merged/i.test(err.message)) throw err;
+            unmerged = true;
+          }
+        },
+      });
+      if (!done) return;
+      if (!unmerged) return this.#changed(`Deleted ${name}.`);
+
+      const forced = await confirmModal({
+        title: "Delete unmerged branch",
+        message: `"${name}" has commits that are not merged anywhere else.\nDelete it anyway? They may be lost.`,
+        confirmLabel: "Delete anyway",
+        danger: true,
+        action: () => deleteBranch({ repo, name, force: true }),
+      });
+      if (forced) this.#changed(`Deleted ${name}.`);
     }
 
     async #deleteRemote(name) {
       const repo = data.repository;
-      if (
-        !repo ||
-        !confirm(
-          `Delete "${name}" on the remote?\nThis removes the branch for everyone who uses it.`,
-        )
-      )
-        return;
-      try {
-        await deleteRemoteBranch({ repo, name });
-        toast(`Deleted ${name}.`);
-        document.dispatchEvent(new CustomEvent("pb-history-change"));
-      } catch (err) {
-        toast(err.message || "Could not delete the remote branch.", {
-          error: true,
-        });
-      }
+      if (!repo) return;
+      const done = await confirmModal({
+        title: "Delete remote branch",
+        message: `Delete "${name}" on the remote?\nThis removes the branch for everyone who uses it.`,
+        confirmLabel: "Delete on remote",
+        danger: true,
+        action: () => deleteRemoteBranch({ repo, name }),
+      });
+      if (done) this.#changed(`Deleted ${name}.`);
     }
 
     async #drop(id, label) {
       const repo = data.repository;
-      if (
-        !repo ||
-        !confirm(
-          `Drop the stash "${label}"?\nIts changes are discarded without being applied.`,
-        )
-      )
-        return;
-      try {
-        await dropStash({ repo, id });
-        toast("Stash dropped.");
-        document.dispatchEvent(new CustomEvent("pb-history-change"));
-      } catch (err) {
-        toast(err.message || "Could not drop the stash.", { error: true });
-      }
+      if (!repo) return;
+      const done = await confirmModal({
+        title: "Drop stash",
+        message: `Drop the stash "${label}"?\nIts changes are discarded without being applied.`,
+        confirmLabel: "Drop stash",
+        danger: true,
+        action: () => dropStash({ repo, id }),
+      });
+      if (done) this.#changed("Stash dropped.");
     }
 
     #render() {
@@ -233,8 +271,8 @@ customElements.define(
         .length
         ? this.#stashes
             .map(
-              (st) =>
-                `<li class="pb-branch"><button type="button" title="${escapeHtml(`${st.id} on ${st.branch}`)}">${ICON_ARCHIVE}${escapeHtml(st.message)}</button>${x("data-drop", st.id, `Drop stash ${st.message}`).replace("<button ", `<button data-label="${escapeHtml(st.message)}" `)}</li>`,
+              (st, i) =>
+                `<li class="pb-branch"><button type="button" data-stash="${i}"${st.hash && st.hash === data.commit?.hash ? ' class="pb-active" aria-pressed="true"' : ' aria-pressed="false"'} title="${escapeHtml(`${st.id} on ${st.branch}: show what it holds`)}">${ICON_ARCHIVE}${escapeHtml(st.message)}</button>${x("data-drop", st.id, `Drop stash ${st.message}`).replace("<button ", `<button data-label="${escapeHtml(st.message)}" `)}</li>`,
             )
             .join("")
         : `<li class="pb-empty">No stashes.</li>`;

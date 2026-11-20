@@ -407,6 +407,55 @@ pub fn merge(repo: &Path, source: &str, target: &str) -> Result<MergeOutcome> {
     )))
 }
 
+/// Applies the changes of one commit on top of the checked-out branch as a new commit
+/// (`git cherry-pick`). Refuses while there are changed files; a pick that stops on
+/// conflicts is aborted so the project is exactly as it was.
+pub fn cherry_pick(repo: &Path, commit: &str) -> Result<()> {
+    let commit = commit.trim();
+    let hex = commit.len() >= 7 && commit.len() <= 64 && commit.chars().all(|c| c.is_ascii_hexdigit());
+    if !hex {
+        return Err(Error::Invalid("That is not a commit hash.".into()));
+    }
+    let object = format!("{commit}^{{commit}}");
+    if !git_in(repo).args(["rev-parse", "-q", "--verify"]).arg(&object).output()?.status.success() {
+        return Err(Error::NotFound("There is no such commit in this project.".into()));
+    }
+    let porcelain = git_in(repo).args(["status", "--porcelain"]).output()?;
+    if !porcelain.stdout.is_empty() {
+        return Err(Error::Conflict(
+            "You can't cherry pick until you do something with your changed files: commit, stash or discard them first.".into(),
+        ));
+    }
+    // a merge commit has several parents: which side to take is not a question for a button
+    let parents = git_in(repo).args(["rev-list", "--parents", "-n", "1"]).arg(&object).output()?;
+    if String::from_utf8_lossy(&parents.stdout).split_whitespace().count() > 2 {
+        return Err(Error::Invalid("That is a merge commit, and cherry picking merges is not supported.".into()));
+    }
+
+    let mut cmd = git_in(repo);
+    cmd.args(["cherry-pick"]).arg(commit);
+    cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_EDITOR", "true").stdin(Stdio::null());
+    let out = cmd.output()?;
+    if out.status.success() {
+        return Ok(());
+    }
+
+    let conflicted = git_in(repo).args(["diff", "--name-only", "--diff-filter=U"]).output()?;
+    let files: Vec<String> = String::from_utf8_lossy(&conflicted.stdout).lines().map(str::to_string).collect();
+    let text = failure_text(&out.stdout, &out.stderr);
+    let _ = git_in(repo).args(["cherry-pick", "--abort"]).output();
+    if !files.is_empty() {
+        return Err(Error::Conflict(format!(
+            "Cherry picking stops on conflicts in: {}. Nothing was changed; resolve them in your editor or pick on the command line.",
+            files.join(", ")
+        )));
+    }
+    if text.to_ascii_lowercase().contains("empty") {
+        return Err(Error::Conflict("Those changes are already in this branch, so there is nothing to pick.".into()));
+    }
+    Err(Error::Git(if text.is_empty() { "git could not cherry pick.".into() } else { text }))
+}
+
 /// Drops one stash entry without applying it. `id` is a stash ref like `stash@{2}`.
 pub fn stash_drop(repo: &Path, id: &str) -> Result<()> {
     let digits = id.strip_prefix("stash@{").and_then(|r| r.strip_suffix('}'));

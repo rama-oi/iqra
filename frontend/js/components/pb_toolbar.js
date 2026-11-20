@@ -2,6 +2,7 @@ import { getPrefix, icon } from "../lib/helpers.js";
 import data, { setBranch } from "../api/data.js";
 import { pull, push, stashChanges, popStash, createBranch } from "../api/git.js";
 import { toast } from "../lib/toast.js";
+import { promptModal } from "./pb_modal.js";
 import "./pb_view_switcher.js";
 
 const ACTIONS = {
@@ -11,10 +12,19 @@ const ACTIONS = {
     label: "New branch",
     done: "Branch created and checked out.",
     run: async (repo) => {
-      const name = prompt("Name of the new branch (it starts at the commit you are on):");
-      if (!name?.trim()) return false; // cancelled
-      const { currentBranch } = await createBranch({ repo, name: name.trim() });
-      setBranch(currentBranch ?? name.trim());
+      const name = await promptModal({
+        title: "New branch",
+        message: "It starts at the commit you are on and is checked out right away.",
+        label: "Branch name",
+        placeholder: "feature/my-change",
+        confirmLabel: "Create branch",
+        // a name git refuses (taken, not valid) is shown in the dialog, which stays open
+        action: async (name) => {
+          const { currentBranch } = await createBranch({ repo, name });
+          setBranch(currentBranch ?? name);
+        },
+      });
+      if (name === null) return false; // cancelled
     },
   },
   stash: {
@@ -32,7 +42,6 @@ const ACTIONS = {
 
 const BUTTONS = [
   { name: "restore", glyph: "arrow-left", label: "Undo" },
-  { name: "redo", glyph: "arrow-right", label: "Redo" },
   { name: "pull", glyph: "arrow-down", label: ACTIONS.pull.label },
   { name: "push", glyph: "arrow-up", label: ACTIONS.push.label },
   { name: "branch", glyph: "branch", label: "New branch" },

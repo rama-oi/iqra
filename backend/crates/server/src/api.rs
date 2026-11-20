@@ -32,6 +32,7 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/repos/{repo}/issues", get(issues))
         .route("/repos/{repo}/branches", get(branches).post(create_branch).delete(delete_branch))
         .route("/repos/{repo}/merge", post(merge))
+        .route("/repos/{repo}/cherry-pick", post(cherry_pick))
         .route("/repos/{repo}/submodules", get(submodules))
         .route("/repos/{repo}/remote-branches", get(remote_branches).delete(delete_remote_branch))
         .route("/repos/{repo}/stage", post(stage))
@@ -323,6 +324,16 @@ async fn create_branch(State(state): Shared, Path(repo): Path<String>, ApiJson(b
     })
     .await?;
     Ok(Json(json!({ "currentBranch": current })))
+}
+
+#[derive(Deserialize)]
+struct CherryPickBody {
+    commit: String,
+}
+
+async fn cherry_pick(State(state): Shared, Path(repo): Path<String>, ApiJson(body): ApiJson<CherryPickBody>) -> Reply {
+    blocking(move || iqra_core::cherry_pick(open_repo_blocking(&state, &repo)?.path(), &body.commit)).await?;
+    Ok(Json(json!({})))
 }
 
 #[derive(Deserialize)]

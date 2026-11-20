@@ -136,7 +136,7 @@ customElements.define(
       if (data.commit) {
         const fresh = this.#commits.get(data.commit.hash);
         if (fresh) refreshCommit(fresh);
-        else if (!this.#next) setCommit(null);
+        else if (!this.#next && !data.commit.isStash) setCommit(null);
       }
 
       this.style.setProperty("--column-graph-width", `${laneCount * LANE_W}px`);

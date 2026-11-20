@@ -8,6 +8,7 @@ import {
 } from "../api/identities.js";
 import { setIdentity } from "../api/data.js";
 import { toast } from "../lib/toast.js";
+import { confirmModal } from "./pb_modal.js";
 import "./pb_file_picker.js";
 
 customElements.define(
@@ -87,12 +88,22 @@ customElements.define(
       if (btn.classList.contains("pb-select")) {
         this.#loadIdentities(selectIdentity(id));
       } else if (btn.classList.contains("pb-remove")) {
-        this.#loadIdentities(removeIdentity(id));
+        this.#confirmRemove(id, btn.getAttribute("aria-label")?.replace(/^Delete /, "") ?? "this key");
       } else if (btn.classList.contains("pb-copy")) {
         this.#copyPublicKey(id);
       } else if (btn.classList.contains("pb-sync")) {
         this.#sync(btn, id);
       }
+    }
+
+    async #confirmRemove(id, name) {
+      const ok = await confirmModal({
+        title: "Delete SSH key",
+        message: `Delete the key "${name}" from Iqra?\nThe key file is removed from this machine. Projects that use it will no longer be able to push or pull until you add a key again.`,
+        confirmLabel: "Delete key",
+        danger: true,
+      });
+      if (ok) this.#loadIdentities(removeIdentity(id));
     }
 
     async #onAdd(e) {

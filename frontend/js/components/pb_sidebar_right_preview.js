@@ -6,6 +6,9 @@ import data, {
   isSelectedFile,
 } from "../api/data.js";
 import { checkout } from "../api/commits.js";
+import { cherryPick } from "../api/git.js";
+import { toast } from "../lib/toast.js";
+import { confirmModal } from "./pb_modal.js";
 
 function splitMessage(message) {
   const [subject, ...rest] = String(message ?? "").split("\n");
@@ -38,6 +41,9 @@ customElements.define(
         <div class="pb-flex-row">
           <button type="button" class="pb-checkout pb-btn-outline" aria-label="Check out this commit" title="Check out this commit">
             Checkout Commit
+          </button>
+          <button type="button" class="pb-cherry-pick pb-btn-outline" aria-label="Cherry pick this commit" title="Cherry pick this commit">
+            Cherry Pick Commit
           </button>
           <span class="pb-flex-separator"></span>
           <button type="button" class="pb-close" aria-label="Close preview" title="Close (Esc)">
@@ -79,6 +85,8 @@ customElements.define(
       this.#html = {
         $hash: $(".pb-hash"),
         $checkout: $(".pb-checkout"),
+        $cherry: $(".pb-cherry-pick"),
+        $update: $(".pb-commit-btn"),
         $error: $(".pb-error"),
         $avatar: $("pb-avatar"),
         $name: $(".pb-name"),
@@ -92,6 +100,7 @@ customElements.define(
         setCommit(null),
       );
       this.#html.$checkout.addEventListener("click", () => this.#checkout());
+      this.#html.$cherry.addEventListener("click", () => this.#cherryPick());
       document.addEventListener("pb-commit-select", () => this.#render());
       document.addEventListener("pb-file-select", () => this.#markSelected());
 
@@ -114,10 +123,23 @@ customElements.define(
       if (!commit) return;
       const h = this.#html;
 
-      h.$hash.textContent = commit.hash;
+      // a stash is shown like a commit, but there is nothing to check out, pick or reword
+      for (const el of [h.$checkout, h.$cherry, h.$body, h.$update]) {
+        el.hidden = !!commit.isStash;
+      }
+      h.$subject.readOnly = !!commit.isStash;
+      h.$hash.textContent = commit.isStash
+        ? `${commit.stashId} · ${commit.shortHash}`
+        : commit.hash;
       h.$error.hidden = true;
       const { branch } = this.#checkoutTarget(commit);
       h.$checkout.disabled = commit.refs.some((r) => r.isHead);
+      // a merge commit has two sides: which one to take is not something to guess
+      const merge = (commit.parents?.length ?? 0) > 1;
+      h.$cherry.disabled = merge;
+      h.$cherry.title = merge
+        ? "Merge commits cannot be cherry picked"
+        : `Cherry pick onto ${data.branch}`;
       h.$checkout.title = h.$checkout.disabled
         ? "Already checked out"
         : branch
@@ -146,6 +168,22 @@ customElements.define(
             .join("")
         : `<li class="pb-empty">No file information.</li>`;
       this.#markSelected();
+    }
+
+    async #cherryPick() {
+      const commit = data.commit;
+      if (!commit || commit.isStash || !data.repository) return;
+      const repo = data.repository;
+      const picked = await confirmModal({
+        title: "Cherry pick",
+        message: `Copy the changes of ${commit.shortHash ?? commit.hash.slice(0, 7)} onto ${data.detached ? "the checked-out commit" : data.branch} as a new commit?\n${splitMessage(commit.message).subject}`,
+        confirmLabel: "Cherry pick",
+        // changed files, conflicts or an empty pick: the dialog stays open and says so
+        action: () => cherryPick({ repo, commit: commit.hash }),
+      });
+      if (!picked) return;
+      toast("Cherry picked.");
+      document.dispatchEvent(new CustomEvent("pb-history-change"));
     }
 
     #checkoutTarget(commit) {

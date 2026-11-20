@@ -25,6 +25,7 @@ pb-app {
   pb-sidebar-left,
   pb-settings,
   pb-picker,
+  pb-modal,
   pb-clone,
   pb-workarea,
   pb-workarea-empty,
@@ -301,11 +302,13 @@ pb-app {
   .pb-flex-row {
     display: flex;
     flex-direction: row;
+    gap: var(--space-between-inline-items);
   }
 
   .pb-flex-column {
     display: flex;
     flex-direction: column;
+    gap: var(--space-between-inline-items);
   }
 
   .pb-flex-separator {
@@ -1255,6 +1258,7 @@ pb-app {
   }
 
   pb-picker dialog,
+  pb-modal dialog,
   pb-file-browser dialog {
     padding: 0;
     border: 1px solid var(--border);
@@ -1320,6 +1324,65 @@ pb-app {
         background-color: var(--surface-1);
         color: var(--accent);
         border-inline-start-color: var(--accent);
+      }
+    }
+  }
+
+  pb-modal [hidden],
+  pb-sidebar-right-preview [hidden] {
+    display: none !important;
+  }
+
+  pb-modal dialog .pb-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-between-blocks);
+    padding: var(--space-between-blocks);
+
+    .pb-message {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-between-inline-items);
+      overflow-wrap: anywhere;
+
+      &:empty {
+        display: none;
+      }
+    }
+
+    .pb-field {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-between-inline-items);
+
+      .pb-label:empty {
+        display: none;
+      }
+    }
+
+    .pb-modal-error {
+      color: var(--danger);
+      overflow-wrap: anywhere;
+    }
+
+    footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--space-between-inline-items);
+    }
+
+    footer button {
+      height: auto;
+      padding: 0.5rem var(--space-between-blocks);
+    }
+
+    .pb-confirm.pb-danger {
+      background-color: var(--danger);
+      color: var(--base);
+
+      &:hover {
+        background-color: color-mix(in srgb, var(--danger), black 10%);
+        color: var(--base);
       }
     }
   }
@@ -1565,7 +1628,7 @@ pb-app {
       }
     }
   }
-  
+
   pb-file-picker {
     display: flex;
     gap: var(--space-between-inline-items);
