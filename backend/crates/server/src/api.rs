@@ -30,7 +30,8 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/identities/{id}/refresh", post(refresh_identity))
         .route("/identities/{id}", delete(remove_identity))
         .route("/repos/{repo}/issues", get(issues))
-        .route("/repos/{repo}/branches", get(branches).delete(delete_branch))
+        .route("/repos/{repo}/branches", get(branches).post(create_branch).delete(delete_branch))
+        .route("/repos/{repo}/merge", post(merge))
         .route("/repos/{repo}/submodules", get(submodules))
         .route("/repos/{repo}/remote-branches", get(remote_branches).delete(delete_remote_branch))
         .route("/repos/{repo}/stage", post(stage))
@@ -310,6 +311,42 @@ async fn checkout(State(state): Shared, Path(repo): Path<String>, ApiJson(body):
 }
 
 #[derive(Deserialize)]
+struct NewBranchBody {
+    name: String,
+}
+
+async fn create_branch(State(state): Shared, Path(repo): Path<String>, ApiJson(body): ApiJson<NewBranchBody>) -> Reply {
+    let current = blocking(move || {
+        let r = open_repo_blocking(&state, &repo)?;
+        iqra_core::create_branch(r.path(), &body.name)?;
+        Ok(open_repo_blocking(&state, &repo)?.head_branch())
+    })
+    .await?;
+    Ok(Json(json!({ "currentBranch": current })))
+}
+
+#[derive(Deserialize)]
+struct MergeBody {
+    source: String,
+    target: String,
+}
+
+async fn merge(State(state): Shared, Path(repo): Path<String>, ApiJson(body): ApiJson<MergeBody>) -> Reply {
+    let (outcome, current) = blocking(move || {
+        let r = open_repo_blocking(&state, &repo)?;
+        let outcome = iqra_core::merge(r.path(), &body.source, &body.target)?;
+        Ok((outcome, open_repo_blocking(&state, &repo)?.head_branch()))
+    })
+    .await?;
+    let outcome = match outcome {
+        iqra_core::MergeOutcome::UpToDate => "upToDate",
+        iqra_core::MergeOutcome::FastForward => "fastForward",
+        iqra_core::MergeOutcome::Merged => "merged",
+    };
+    Ok(Json(json!({ "outcome": outcome, "currentBranch": current })))
+}
+
+#[derive(Deserialize)]
 struct DeleteBranchQuery {
     name: String,
     #[serde(default)]
@@ -556,16 +593,23 @@ async fn remove_identity(State(state): Shared, Path(id): Path<String>) -> Reply 
 
 /// Issues live on a forge, not in git. For a project whose remote is on GitHub they are
 /// read from GitHub; any other project answers an empty list with a `note` saying why.
-async fn issues(State(state): Shared, Path(repo): Path<String>) -> Reply {
+#[derive(Deserialize)]
+struct IssuesQuery {
+    #[serde(default)]
+    page: Option<u32>,
+}
+
+async fn issues(State(state): Shared, Path(repo): Path<String>, ApiQuery(q): ApiQuery<IssuesQuery>) -> Reply {
+    let page = q.page.unwrap_or(1).clamp(1, 1000);
     let api = state.github_api.clone();
     let slug = blocking(move || open_repo_blocking(&state, &repo).map(|r| r.github_slug())).await?;
     let Some((owner, name)) = slug else {
         return Ok(Json(json!({ "issues": [], "note": "This project has no GitHub remote, so there are no issues to show." })));
     };
     let token = std::env::var("IQRA_GITHUB_TOKEN").ok();
-    let list = tokio::task::spawn_blocking(move || crate::github::fetch_issues(&api, &owner, &name, token.as_deref()))
+    let (list, more) = tokio::task::spawn_blocking(move || crate::github::fetch_issues(&api, &owner, &name, token.as_deref(), page))
         .await
         .map_err(|e| ApiError::new(axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
         .map_err(|m| ApiError::new(axum::http::StatusCode::BAD_GATEWAY, m))?;
-    Ok(Json(json!({ "issues": list })))
+    Ok(Json(json!({ "issues": list, "nextPage": more.then_some(page + 1) })))
 }

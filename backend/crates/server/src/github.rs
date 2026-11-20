@@ -48,15 +48,18 @@ pub fn fetch_profile(api: &str, login: &str) -> Profile {
 }
 
 /// The issues of `owner/name` (pull requests, which GitHub lists among them, left out),
-/// newest first, in the shape the Backlog view reads. Public repositories need no token;
+/// newest first, one page at a time, in the shape the Backlog view reads. Public repositories need no token;
 /// private ones need `IQRA_GITHUB_TOKEN` on the server.
-pub fn fetch_issues(api: &str, owner: &str, name: &str, token: Option<&str>) -> Result<Vec<Value>, String> {
+/// Issues per page; a full page is the sign that there may be another one.
+pub const PAGE_SIZE: usize = 50;
+
+pub fn fetch_issues(api: &str, owner: &str, name: &str, token: Option<&str>, page: u32) -> Result<(Vec<Value>, bool), String> {
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(10)))
         .build()
         .into();
     let mut req = agent
-        .get(format!("{api}/repos/{owner}/{name}/issues?state=all&per_page=100&sort=created&direction=desc"))
+        .get(format!("{api}/repos/{owner}/{name}/issues?state=all&per_page={PAGE_SIZE}&page={page}&sort=created&direction=desc"))
         .header("User-Agent", "iqra")
         .header("Accept", "application/vnd.github+json");
     if let Some(t) = token.filter(|t| !t.is_empty()) {
@@ -72,7 +75,9 @@ pub fn fetch_issues(api: &str, owner: &str, name: &str, token: Option<&str>) -> 
         Err(ureq::Error::StatusCode(code)) => return Err(format!("GitHub answered {code} for the issues of {owner}/{name}.")),
         Err(_) => return Err("Could not reach GitHub.".to_string()),
     };
-    Ok(list.iter().filter(|i| i.get("pull_request").is_none()).filter_map(issue_json).collect())
+    // pull requests are filtered out, so a short page is judged before that
+    let more = list.len() >= PAGE_SIZE;
+    Ok((list.iter().filter(|i| i.get("pull_request").is_none()).filter_map(issue_json).collect(), more))
 }
 
 fn issue_json(i: &Value) -> Option<Value> {

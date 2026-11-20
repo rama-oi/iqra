@@ -45,7 +45,8 @@ pub fn build_state(config: &Config) -> anyhow::Result<Arc<AppState>> {
 }
 
 pub fn build_state_with(config: &Config, profile_lookup: ProfileLookup) -> anyhow::Result<Arc<AppState>> {
-    build_state_full(config, profile_lookup, github::API.to_string())
+    // IQRA_GITHUB_API points the issue list at another API root (for trying it out offline)
+    build_state_full(config, profile_lookup, std::env::var("IQRA_GITHUB_API").unwrap_or_else(|_| github::API.to_string()))
 }
 
 pub fn build_state_full(config: &Config, profile_lookup: ProfileLookup, github_api: String) -> anyhow::Result<Arc<AppState>> {

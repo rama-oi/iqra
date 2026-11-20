@@ -1,6 +1,8 @@
 import { getPrefix, escapeHtml } from "../lib/helpers.js";
-import data from "../api/data.js";
+import data, { setBranch } from "../api/data.js";
 import { fetchBranches } from "../api/projects.js";
+import { mergeBranches } from "../api/git.js";
+import { toast } from "../lib/toast.js";
 import { spiralCell, route } from "../graph/merge-grid.js";
 
 const CELL_W = 220; // distance between branch centres, sideways
@@ -32,6 +34,7 @@ customElements.define(
     #target = null;
     #view = { cx: 0, cy: 0, scale: 1 };
     #drag = null;
+    #merging = false;
     // Next time there is room, fit everything on screen but never smaller than this scale:
     // a big project opens readable, around the branch you are on, and "Fit" shows all.
     #fit = READABLE;
@@ -44,6 +47,7 @@ customElements.define(
         </div>
         <button type="button" class="pb-merge-center" title="Fit every branch on screen">Fit</button>
         <button type="button" class="pb-merge-clear" title="Forget the selection" disabled>Clear</button>
+        <button type="button" class="pb-btn pb-merge-go" disabled>Merge</button>
       </section>
       <p class="pb-merge-status" role="status"></p>
       <div class="pb-merge-canvas">
@@ -71,6 +75,9 @@ customElements.define(
       });
       this.querySelector(".pb-merge-clear").addEventListener("click", () =>
         this.#select(null),
+      );
+      this.querySelector(".pb-merge-go").addEventListener("click", () =>
+        this.#merge(),
       );
 
       svg.addEventListener("click", (e) => {
@@ -208,6 +215,36 @@ customElements.define(
       this.#render();
     }
 
+    // ---- merging ----------------------------------------------------------------------
+
+    async #merge() {
+      const repo = data.repository;
+      const source = this.#source;
+      const target = this.#target;
+      if (!repo || !source || !target || this.#merging) return;
+      this.#merging = true;
+      this.#render();
+      try {
+        const { outcome, currentBranch } = await mergeBranches({ repo, source, target });
+        toast(
+          outcome === "upToDate"
+            ? `${target} already has everything from ${source}.`
+            : outcome === "fastForward"
+              ? `Merged ${source} into ${target} (fast-forward).`
+              : `Merged ${source} into ${target}.`,
+        );
+        if (currentBranch) setBranch(currentBranch);
+        this.#source = this.#target = null;
+      } catch (err) {
+        // changed files, conflicts, a missing git identity: the message says what to do
+        toast(err.message || "The merge did not work.", { error: true });
+      } finally {
+        this.#merging = false;
+        if (repo === data.repository)
+          document.dispatchEvent(new CustomEvent("pb-history-change"));
+      }
+    }
+
     // ---- drawing ----------------------------------------------------------------------
 
     #toWorld(clientX, clientY) {
@@ -254,7 +291,10 @@ customElements.define(
       this.querySelector(".pb-count").textContent = nodes.length
         ? `${nodes.length} branch${nodes.length === 1 ? "" : "es"}`
         : "";
-      this.querySelector(".pb-merge-clear").disabled = !this.#source;
+      this.querySelector(".pb-merge-clear").disabled = !this.#source || this.#merging;
+      const $go = this.querySelector(".pb-merge-go");
+      $go.disabled = !(this.#source && this.#target) || this.#merging;
+      $go.textContent = this.#merging ? "Merging…" : "Merge";
 
       const src = this.#source;
       const dst = this.#target;
@@ -278,7 +318,7 @@ customElements.define(
           const py = n.y * CELL_H;
           return `<g class="${cls}" data-branch="${escapeHtml(n.name)}" transform="translate(${px} ${py})" tabindex="0" role="button" aria-pressed="${role !== ""}" aria-label="${escapeHtml(n.name)}${role ? `, ${role === "from" ? "branch to merge" : "merge target"}` : ""}">
             <title>${escapeHtml(n.name)}${n.current ? " (checked out)" : ""}</title>
-            <rect x="${-NODE_W / 2}" y="${-NODE_H / 2}" width="${NODE_W}" height="${NODE_H}" rx="8"></rect>
+            <rect x="${-NODE_W / 2}" y="${-NODE_H / 2}" width="${NODE_W}" height="${NODE_H}"></rect>
             ${n.current ? `<circle cx="${-NODE_W / 2 + 14}" cy="0" r="4" class="pb-merge-dot"></circle>` : ""}
             <text x="${n.current ? 6 : 0}" y="0" text-anchor="middle" dominant-baseline="central">${escapeHtml(shorten(n.name))}</text>
             ${role ? `<text class="pb-merge-role" x="0" y="${-NODE_H / 2 - 7}" text-anchor="middle">${role}</text>` : ""}

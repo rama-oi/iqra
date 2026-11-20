@@ -18,7 +18,7 @@ mod ssh_url;
 mod time;
 
 pub use browse::{Folder, Listing, list_folders};
-pub use cli::{Ssh, checkout, checkout_remote, delete_branch, delete_remote_branch, stash_drop, clone_ssh, commit, github_login, pull, push, stage, stash_pop, stash_push, unstage, write_ssh_config};
+pub use cli::{Ssh, MergeOutcome, checkout, checkout_remote, create_branch, merge, delete_branch, delete_remote_branch, stash_drop, clone_ssh, commit, github_login, pull, push, stage, stash_pop, stash_push, unstage, write_ssh_config};
 pub use error::{Error, Result};
 pub use identities::{Identities, Identity, Profile};
 pub use model::*;

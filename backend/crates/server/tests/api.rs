@@ -735,3 +735,111 @@ async fn a_private_repository_says_why_its_issues_are_missing() {
     assert_eq!(s, StatusCode::BAD_GATEWAY);
     assert!(j["error"].as_str().unwrap().contains("IQRA_GITHUB_TOKEN"), "{j}");
 }
+
+#[tokio::test]
+async fn a_new_branch_is_created_and_checked_out_with_a_checked_name() {
+    let e = env();
+    open_demo(&e).await;
+    let (s, _, j, _) = call(&e.app, "POST", "/api/repos/demo/branches", &[], Some(json!({ "name": "topic/login" }))).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert_eq!(j["currentBranch"], "topic/login");
+
+    let (s, _, j, _) = call(&e.app, "POST", "/api/repos/demo/branches", &[], Some(json!({ "name": "topic/login" }))).await;
+    assert_eq!(s, StatusCode::CONFLICT, "{j}");
+    for bad in ["", "  ", "-x", "has space", "a..b", "end.lock", "ctl\u{7}"] {
+        let (s, ..) = call(&e.app, "POST", "/api/repos/demo/branches", &[], Some(json!({ "name": bad }))).await;
+        assert_eq!(s, StatusCode::BAD_REQUEST, "{bad:?}");
+    }
+}
+
+fn commit_file(dir: &std::path::Path, file: &str, text: &str) {
+    std::fs::write(dir.join(file), text).unwrap();
+    git(dir, &["add", file]);
+    git(dir, &["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", file]);
+}
+
+#[tokio::test]
+async fn branches_are_merged_and_the_target_ends_up_checked_out() {
+    let e = env();
+    open_demo(&e).await;
+    let dir = e.repo.path();
+    git(dir, &["config", "user.name", "t"]);
+    git(dir, &["config", "user.email", "t@t"]);
+    git(dir, &["checkout", "-q", "-b", "ff"]);
+    commit_file(dir, "ff.txt", "ff");
+    git(dir, &["checkout", "-q", "-b", "side", "main"]);
+    commit_file(dir, "side.txt", "side");
+    git(dir, &["checkout", "-q", "main"]);
+    let merge = |s: &str, t: &str| call(&e.app, "POST", "/api/repos/demo/merge", &[], Some(json!({ "source": s, "target": t })));
+
+    // main already has everything of itself
+    let (s, _, j, _) = merge("main", "ff").await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert_eq!(j["outcome"], "upToDate");
+
+    // fast-forward: the target is not the checked-out branch, and ends up checked out
+    let (s, _, j, _) = merge("ff", "main").await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert_eq!(j["outcome"], "fastForward");
+    assert_eq!(j["currentBranch"], "main");
+    assert!(dir.join("ff.txt").exists());
+
+    // diverged: a merge commit, from another checked-out branch
+    git(dir, &["checkout", "-q", "feature"]);
+    let (s, _, j, _) = merge("side", "main").await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert_eq!(j["outcome"], "merged");
+    assert_eq!(j["currentBranch"], "main");
+    assert!(dir.join("side.txt").exists());
+
+    for (s, t) in [("main", "main"), ("ghost", "main"), ("--all", "main")] {
+        let (st, ..) = merge(s, t).await;
+        assert_ne!(st, StatusCode::OK, "{s} -> {t}");
+    }
+}
+
+#[tokio::test]
+async fn merging_waits_for_changed_files_and_gives_up_cleanly_on_conflicts() {
+    let e = env();
+    open_demo(&e).await;
+    let dir = e.repo.path();
+    git(dir, &["config", "user.name", "t"]);
+    git(dir, &["config", "user.email", "t@t"]);
+    git(dir, &["checkout", "-q", "-b", "a", "main"]);
+    commit_file(dir, "clash.txt", "from a\n");
+    git(dir, &["checkout", "-q", "-b", "b", "main"]);
+    commit_file(dir, "clash.txt", "from b\n");
+    let merge = |s: &str, t: &str| call(&e.app, "POST", "/api/repos/demo/merge", &[], Some(json!({ "source": s, "target": t })));
+
+    // an untracked file already counts as a changed file
+    std::fs::write(dir.join("scratch.txt"), "x").unwrap();
+    let (s, _, j, _) = merge("a", "b").await;
+    assert_eq!(s, StatusCode::CONFLICT);
+    assert!(j["error"].as_str().unwrap().contains("do something with your changed files"), "{j}");
+    std::fs::remove_file(dir.join("scratch.txt")).unwrap();
+
+    // conflicts: reported, aborted, and the checked-out branch is back where it was
+    git(dir, &["checkout", "-q", "main"]);
+    let (s, _, j, _) = merge("a", "b").await;
+    assert_eq!(s, StatusCode::CONFLICT, "{j}");
+    assert!(j["error"].as_str().unwrap().contains("clash.txt"), "{j}");
+    assert_eq!(String::from_utf8_lossy(&std::process::Command::new("git").arg("-C").arg(dir).args(["branch", "--show-current"]).output().unwrap().stdout).trim(), "main");
+    assert!(!dir.join(".git/MERGE_HEAD").exists());
+    assert_eq!(String::from_utf8_lossy(&std::process::Command::new("git").arg("-C").arg(dir).args(["status", "--porcelain"]).output().unwrap().stdout).trim(), "");
+}
+
+#[tokio::test]
+async fn the_backlog_asks_github_for_one_page_and_says_whether_more_follow() {
+    let items: Vec<String> = (1..=50)
+        .map(|n| format!(r#"{{"number":{n},"title":"t{n}","state":"open","labels":[],"user":{{"login":"a"}},"assignee":null,"created_at":"2026-11-01T10:00:00Z","body":null}}"#))
+        .collect();
+    let (api, seen) = fake_github("200 OK", &format!("[{}]", items.join(",")));
+    let e = env_with_api(Box::new(|_| None), api);
+    open_demo(&e).await;
+    git(e.repo.path(), &["remote", "add", "origin", "https://github.com/rama-oi/iqra.git"]);
+    let (s, j) = get(&e.app, "/api/repos/demo/issues?page=3").await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert_eq!(j["issues"].as_array().unwrap().len(), 50);
+    assert_eq!(j["nextPage"], 4);
+    assert!(seen.recv().unwrap().contains("page=3"));
+}

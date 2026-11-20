@@ -6,6 +6,8 @@ import {
   mockGiveChanges,
 } from "./changes.js";
 import { mockPushStash, mockPopStash } from "./stashes.js";
+import { mockAddBranch } from "./projects.js";
+import { checkout } from "./commits.js";
 
 const delay = (ms = 200) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -58,4 +60,27 @@ export async function pull({ repo }) {
 export async function push({ repo }) {
   if (MOCK.changes) return delay(600);
   return post(repo, "push");
+}
+
+// A new branch at the current commit, checked out right away.
+//   POST /api/repos/:repo/branches { name } -> { currentBranch }
+export async function createBranch({ repo, name }) {
+  if (MOCK.changes) {
+    await delay();
+    mockAddBranch(repo, name);
+    return checkout({ repo, branch: name });
+  }
+  return post(repo, "branches", { name });
+}
+
+// Merge the local branch `source` into the local branch `target`, which ends up checked
+// out. With changed files in the project the answer is an error saying to deal with them.
+//   POST /api/repos/:repo/merge { source, target }
+//     -> { outcome: "merged" | "fastForward" | "upToDate", currentBranch }
+export async function mergeBranches({ repo, source, target }) {
+  if (MOCK.changes) {
+    await delay();
+    return { outcome: "merged", currentBranch: target };
+  }
+  return post(repo, "merge", { source, target });
 }

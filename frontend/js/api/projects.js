@@ -67,6 +67,11 @@ export async function fetchBranches(repo) {
   return (await res.json()).branches;
 }
 
+// Mock only: a branch created from the toolbar.
+export function mockAddBranch(repo, name) {
+  (MOCK_BRANCHES[repo] ??= []).push(name);
+}
+
 export async function deleteBranch({ repo, name, force = false }) {
   if (USE_MOCK) {
     await delay();

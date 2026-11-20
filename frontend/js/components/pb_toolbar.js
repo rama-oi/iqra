@@ -1,12 +1,22 @@
 import { getPrefix, icon } from "../lib/helpers.js";
-import data from "../api/data.js";
-import { pull, push, stashChanges, popStash } from "../api/git.js";
+import data, { setBranch } from "../api/data.js";
+import { pull, push, stashChanges, popStash, createBranch } from "../api/git.js";
 import { toast } from "../lib/toast.js";
 import "./pb_view_switcher.js";
 
 const ACTIONS = {
   pull: { label: "Pull", done: "Pulled.", run: (repo) => pull({ repo }) },
   push: { label: "Push", done: "Pushed.", run: (repo) => push({ repo }) },
+  branch: {
+    label: "New branch",
+    done: "Branch created and checked out.",
+    run: async (repo) => {
+      const name = prompt("Name of the new branch (it starts at the commit you are on):");
+      if (!name?.trim()) return false; // cancelled
+      const { currentBranch } = await createBranch({ repo, name: name.trim() });
+      setBranch(currentBranch ?? name.trim());
+    },
+  },
   stash: {
     label: "Stash changes",
     done: "Changes stashed.",
@@ -69,8 +79,7 @@ customElements.define(
       this.#sync();
       this.setAttribute("aria-busy", "true");
       try {
-        await action.run(repo);
-        toast(action.done);
+        if ((await action.run(repo)) !== false) toast(action.done);
       } catch (err) {
         console.error(err);
         toast(err.message || "Something went wrong, try again.", {

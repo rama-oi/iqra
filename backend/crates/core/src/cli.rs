@@ -295,6 +295,118 @@ pub fn stash_pop(repo: &Path) -> Result<()> {
     run(cmd)
 }
 
+/// Creates the local branch `name` at the current commit and switches to it; uncommitted
+/// changes come along, as with `git checkout -b`.
+pub fn create_branch(repo: &Path, name: &str) -> Result<()> {
+    let name = name.trim();
+    if name.is_empty() || name.starts_with('-') || name.chars().any(|c| c.is_control()) {
+        return Err(Error::Invalid("That is not a valid branch name.".into()));
+    }
+    let valid = git_in(repo).args(["check-ref-format", "--branch"]).arg(name).output()?.status.success();
+    if !valid {
+        return Err(Error::Invalid(format!("\"{name}\" is not a valid branch name (no spaces, no \"..\", no ending \".\" or \".lock\").")));
+    }
+    if local_branch_exists(repo, name) {
+        return Err(Error::Conflict(format!("A branch named \"{name}\" already exists.")));
+    }
+    let mut cmd = git_in(repo);
+    cmd.args(["checkout", "-b"]).arg(name).arg("--");
+    run(cmd)
+}
+
+fn local_branch_exists(repo: &Path, name: &str) -> bool {
+    git_in(repo)
+        .args(["show-ref", "--verify", "--quiet"])
+        .arg(format!("refs/heads/{name}"))
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MergeOutcome {
+    /// `target` already had everything of `source`; nothing was done.
+    UpToDate,
+    /// `target` simply moved forward to `source`.
+    FastForward,
+    /// A merge commit was made.
+    Merged,
+}
+
+/// Merges the local branch `source` into the local branch `target`, leaving `target`
+/// checked out. Refuses while there are changed files, and a merge that stops on
+/// conflicts is aborted so the project is exactly as it was.
+pub fn merge(repo: &Path, source: &str, target: &str) -> Result<MergeOutcome> {
+    for name in [source, target] {
+        if name.is_empty() || name.starts_with('-') || !local_branch_exists(repo, name) {
+            return Err(Error::NotFound(format!("There is no branch named \"{name}\".")));
+        }
+    }
+    if source == target {
+        return Err(Error::Invalid("Pick two different branches.".into()));
+    }
+    let porcelain = git_in(repo).args(["status", "--porcelain"]).output()?;
+    if !porcelain.stdout.is_empty() {
+        return Err(Error::Conflict(
+            "You can't merge until you do something with your changed files: commit, stash or discard them first.".into(),
+        ));
+    }
+    if git_in(repo).args(["rev-parse", "-q", "--verify", "MERGE_HEAD"]).output()?.status.success() {
+        return Err(Error::Conflict("A merge is already in progress in this project. Finish or abort it first.".into()));
+    }
+
+    let ancestor = |a: &str, b: &str| {
+        git_in(repo)
+            .args(["merge-base", "--is-ancestor"])
+            .arg(format!("refs/heads/{a}"))
+            .arg(format!("refs/heads/{b}"))
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    };
+    if ancestor(source, target) {
+        return Ok(MergeOutcome::UpToDate);
+    }
+    let outcome = if ancestor(target, source) { MergeOutcome::FastForward } else { MergeOutcome::Merged };
+
+    // where to return to if the merge has to be given up
+    let head = git_in(repo).args(["symbolic-ref", "--short", "-q", "HEAD"]).output()?;
+    let original = String::from_utf8_lossy(&head.stdout).trim().to_string();
+    let original = if original.is_empty() {
+        String::from_utf8_lossy(&git_in(repo).args(["rev-parse", "HEAD"]).output()?.stdout).trim().to_string()
+    } else {
+        original
+    };
+    if original != target {
+        let mut cmd = git_in(repo);
+        cmd.args(["checkout"]).arg(target).arg("--");
+        run(cmd)?;
+    }
+
+    let mut cmd = git_in(repo);
+    cmd.args(["merge", "--no-edit"]).arg(format!("refs/heads/{source}"));
+    cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_EDITOR", "true").stdin(Stdio::null());
+    let out = cmd.output()?;
+    if out.status.success() {
+        return Ok(outcome);
+    }
+
+    let conflicted = git_in(repo).args(["diff", "--name-only", "--diff-filter=U"]).output()?;
+    let files: Vec<String> = String::from_utf8_lossy(&conflicted.stdout).lines().map(str::to_string).collect();
+    let _ = git_in(repo).args(["merge", "--abort"]).output();
+    if original != target {
+        let _ = git_in(repo).args(["checkout"]).arg(&original).arg("--").output();
+    }
+    if files.is_empty() {
+        let text = failure_text(&out.stdout, &out.stderr);
+        return Err(Error::Git(if text.is_empty() { "git could not merge.".into() } else { text }));
+    }
+    Err(Error::Conflict(format!(
+        "Merging {source} into {target} stops on conflicts in: {}. Nothing was changed; resolve them in your editor or merge on the command line.",
+        files.join(", ")
+    )))
+}
+
 /// Drops one stash entry without applying it. `id` is a stash ref like `stash@{2}`.
 pub fn stash_drop(repo: &Path, id: &str) -> Result<()> {
     let digits = id.strip_prefix("stash@{").and_then(|r| r.strip_suffix('}'));
