@@ -40,10 +40,10 @@ customElements.define(
       <div class="pb-wrapper">
         <div class="pb-flex-row">
           <button type="button" class="pb-checkout pb-btn-outline" aria-label="Check out this commit" title="Check out this commit">
-            Checkout Commit
+            Checkout
           </button>
           <button type="button" class="pb-cherry-pick pb-btn-outline" aria-label="Cherry pick this commit" title="Cherry pick this commit">
-            Cherry Pick Commit
+            Cherry Pick
           </button>
           <span class="pb-flex-separator"></span>
           <button type="button" class="pb-close" aria-label="Close preview" title="Close (Esc)">

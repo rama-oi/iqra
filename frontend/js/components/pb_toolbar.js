@@ -41,7 +41,6 @@ const ACTIONS = {
 };
 
 const BUTTONS = [
-  { name: "restore", glyph: "arrow-left", label: "Undo" },
   { name: "pull", glyph: "arrow-down", label: ACTIONS.pull.label },
   { name: "push", glyph: "arrow-up", label: ACTIONS.push.label },
   { name: "branch", glyph: "branch", label: "New branch" },
