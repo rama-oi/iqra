@@ -1,5 +1,5 @@
 import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
-import data, { setBranch, setCommit } from "../api/data.js";
+import data, { setBranch, setCommit, setSubmodule } from "../api/data.js";
 import {
   fetchBranches,
   fetchRemoteBranches,
@@ -90,6 +90,20 @@ customElements.define(
             if (del) this.#drop(del.dataset.drop, del.dataset.label);
           },
         );
+        this.querySelector(".pb-submodules .pb-content").addEventListener(
+          "click",
+          (e) => {
+            const btn = e.target.closest("button[data-submodule]");
+            if (!btn) return;
+            const m = this.#submodules.find(
+              (x) => x.path === btn.dataset.submodule,
+            );
+            setSubmodule(data.submodule?.path === m?.path ? null : m);
+          },
+        );
+        document.addEventListener("pb-submodule-select", () =>
+          this.#markSubmodule(),
+        );
         for (const type of ["pb-repository-change", "pb-branch-change"]) {
           document.addEventListener(type, () => this.#render());
         }
@@ -113,6 +127,11 @@ customElements.define(
         : [[], [], [], []];
       if (loadId !== this.#loadId) return;
       this.#submodules = submodules;
+      // keep the open panel's details current after a reload
+      if (data.submodule) {
+        const fresh = submodules.find((m) => m.path === data.submodule.path);
+        setSubmodule(fresh ?? null);
+      }
       this.#branches = branches;
       this.#stashes = stashes;
       this.#remotes = remotes;
@@ -152,6 +171,16 @@ customElements.define(
         isStash: true,
         stashId: st.id,
       });
+    }
+
+    #markSubmodule() {
+      this.querySelectorAll(".pb-submodules button[data-submodule]").forEach(
+        (btn) => {
+          const active = btn.dataset.submodule === data.submodule?.path;
+          btn.classList.toggle("pb-active", active);
+          btn.setAttribute("aria-pressed", String(active));
+        },
+      );
     }
 
     #markStash() {
@@ -262,7 +291,7 @@ customElements.define(
         ? this.#submodules
             .map(
               (m) =>
-                `<li class="pb-ref" title="${escapeHtml(`${m.url}${m.initialized ? "" : " (not cloned)"}`)}">${ICON_BRANCH}${escapeHtml(m.path)}${m.initialized ? "" : ` <span class="pb-hint">not cloned</span>`}</li>`,
+                `<li class="pb-branch"><button type="button" data-submodule="${escapeHtml(m.path)}" aria-pressed="${data.submodule?.path === m.path}"${data.submodule?.path === m.path ? ' class="pb-active"' : ""} title="${escapeHtml(`${m.url}${m.initialized ? "" : " (not cloned)"}`)}">${ICON_BRANCH}${escapeHtml(m.path)}${m.initialized ? "" : ` <span class="pb-hint">not cloned</span>`}</button></li>`,
             )
             .join("")
         : `<li class="pb-empty">No submodules.</li>`;

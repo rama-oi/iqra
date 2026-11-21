@@ -34,9 +34,12 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/repos/{repo}/merge", post(merge))
         .route("/repos/{repo}/cherry-pick", post(cherry_pick))
         .route("/repos/{repo}/submodules", get(submodules))
+        .route("/repos/{repo}/submodules/update", post(update_submodule))
         .route("/repos/{repo}/remote-branches", get(remote_branches).delete(delete_remote_branch))
         .route("/repos/{repo}/stage", post(stage))
         .route("/repos/{repo}/unstage", post(unstage))
+        .route("/repos/{repo}/discard", post(discard))
+        .route("/repos/{repo}/stage-lines", post(stage_lines))
         .route("/repos/{repo}/push", post(push))
         .route("/repos/{repo}/pull", post(pull))
         .route("/repos/{repo}/stashes/push", post(stash_push))
@@ -401,6 +404,26 @@ async fn drop_stash(State(state): Shared, Path(repo): Path<String>, ApiQuery(q):
     Ok(Json(json!({})))
 }
 
+#[derive(Deserialize)]
+struct SubmoduleBody {
+    path: String,
+}
+
+async fn update_submodule(State(state): Shared, Path(repo): Path<String>, ApiJson(body): ApiJson<SubmoduleBody>) -> Reply {
+    let key = active_key(&state);
+    let list = blocking(move || {
+        let r = open_repo_blocking(&state, &repo)?;
+        // only a submodule the project really declares, never a path the browser made up
+        if !r.submodules()?.iter().any(|m| m.path == body.path) {
+            return Err(iqra_core::Error::NotFound(format!("There is no submodule at \"{}\".", body.path)));
+        }
+        iqra_core::update_submodule(r.path(), &body.path, ssh_of(&key, &state))?;
+        open_repo_blocking(&state, &repo)?.submodules()
+    })
+    .await?;
+    Ok(Json(json!({ "submodules": list })))
+}
+
 async fn submodules(State(state): Shared, Path(repo): Path<String>) -> Reply {
     let list = blocking(move || open_repo_blocking(&state, &repo)?.submodules()).await?;
     Ok(Json(json!({ "submodules": list })))
@@ -426,6 +449,70 @@ async fn stage(State(state): Shared, Path(repo): Path<String>, ApiJson(body): Ap
 async fn unstage(State(state): Shared, Path(repo): Path<String>, ApiJson(body): ApiJson<PathsBody>) -> Reply {
     blocking(move || iqra_core::unstage(open_repo_blocking(&state, &repo)?.path(), &body.paths)).await?;
     Ok(Json(json!({})))
+}
+
+#[derive(Deserialize)]
+struct LinesBody {
+    path: String,
+    /// true: take lines out of the index; false: put lines of the working copy into it
+    #[serde(default)]
+    staged: bool,
+    /// the diff the person was looking at; refused when the file has changed since
+    patch: String,
+    /// changed lines (+ and -), counted from 0 over the whole diff
+    lines: Vec<usize>,
+}
+
+async fn stage_lines(State(state): Shared, Path(repo): Path<String>, ApiJson(body): ApiJson<LinesBody>) -> Reply {
+    blocking(move || {
+        let r = open_repo_blocking(&state, &repo)?;
+        let target = if body.staged { DiffTarget::Staged } else { DiffTarget::Unstaged };
+        let fresh = r.diff(&body.path, &target)?;
+        if fresh.binary || fresh.truncated || fresh.status == "A" || fresh.status == "D" {
+            return Err(iqra_core::Error::Invalid(
+                "Lines can only be picked in changes to existing text files; stage or unstage the whole file instead.".into(),
+            ));
+        }
+        if fresh.patch != body.patch {
+            return Err(iqra_core::Error::Conflict("The file changed since the diff was loaded. Reload it and pick again.".into()));
+        }
+        let picked = body.lines.into_iter().collect();
+        iqra_core::apply_lines(r.path(), &fresh.patch, &picked, body.staged)
+    })
+    .await?;
+    Ok(Json(json!({})))
+}
+
+#[derive(Deserialize)]
+struct DiscardBody {
+    /// The unstaged files to throw away; leave out (or send `all`) for every one of them.
+    #[serde(default)]
+    paths: Vec<String>,
+    #[serde(default)]
+    all: bool,
+}
+
+/// Only files that really are unstaged changes are touched, whatever the browser sent.
+async fn discard(State(state): Shared, Path(repo): Path<String>, ApiJson(body): ApiJson<DiscardBody>) -> Reply {
+    let count = blocking(move || {
+        let r = open_repo_blocking(&state, &repo)?;
+        let unstaged = r.status()?.unstaged;
+        let chosen: Vec<_> = if body.all {
+            unstaged
+        } else {
+            if body.paths.is_empty() {
+                return Err(iqra_core::Error::Invalid("Choose at least one file.".into()));
+            }
+            unstaged.into_iter().filter(|f| body.paths.contains(&f.path)).collect()
+        };
+        if chosen.is_empty() {
+            return Ok(0);
+        }
+        iqra_core::discard(r.path(), &chosen)?;
+        Ok(chosen.len())
+    })
+    .await?;
+    Ok(Json(json!({ "discarded": count })))
 }
 
 /// Push and pull act on the checked-out branch: with a detached HEAD there is none.

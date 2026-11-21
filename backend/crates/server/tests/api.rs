@@ -918,3 +918,136 @@ async fn a_stash_lists_its_files_and_its_diff_can_be_read_by_its_hash() {
     assert_eq!(s, StatusCode::OK, "{j}");
     assert!(j["patch"].as_str().unwrap().contains("+stashed change"), "{j}");
 }
+
+#[tokio::test]
+async fn unstaged_changes_are_discarded_but_staged_ones_stay() {
+    let e = env();
+    open_demo(&e).await;
+    let dir = e.repo.path();
+    let original = std::fs::read_to_string(dir.join("a.txt")).unwrap();
+    std::fs::write(dir.join("a.txt"), "edited\n").unwrap(); // tracked, unstaged
+    std::fs::write(dir.join("new.txt"), "brand new\n").unwrap(); // untracked
+    std::fs::write(dir.join("keep.txt"), "staged\n").unwrap();
+    git(dir, &["add", "keep.txt"]);
+    std::fs::write(dir.join("keep.txt"), "staged, then edited\n").unwrap(); // staged AND unstaged
+    let post = |b: Value| call(&e.app, "POST", "/api/repos/demo/discard", &[], Some(b));
+
+    let (s, ..) = post(json!({})).await;
+    assert_eq!(s, StatusCode::BAD_REQUEST, "nothing chosen is not 'everything'");
+
+    // one file; a path that is not an unstaged change is ignored, never touched
+    let (s, _, j, _) = post(json!({ "paths": ["new.txt", ".git/config"] })).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert_eq!(j["discarded"], 1);
+    assert!(!dir.join("new.txt").exists());
+    assert!(dir.join(".git/config").exists());
+
+    // everything unstaged
+    let (s, _, j, _) = post(json!({ "all": true })).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    assert_eq!(std::fs::read_to_string(dir.join("a.txt")).unwrap(), original);
+    assert_eq!(std::fs::read_to_string(dir.join("keep.txt")).unwrap(), "staged\n", "back to the staged version");
+    let (_, st) = get(&e.app, "/api/repos/demo/status").await;
+    assert_eq!(st["unstaged"], json!([]), "{st}");
+    assert_eq!(st["staged"], json!([{ "path": "keep.txt", "status": "A" }]));
+
+    // a deleted file comes back
+    std::fs::remove_file(dir.join("a.txt")).unwrap();
+    let (s, ..) = post(json!({ "paths": ["a.txt"] })).await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(std::fs::read_to_string(dir.join("a.txt")).unwrap(), original);
+}
+
+#[tokio::test]
+async fn a_submodule_is_brought_to_the_latest_commit_of_its_remote() {
+    let e = env();
+    open_demo(&e).await;
+    let dir = e.repo.path();
+    git(dir, &["config", "user.name", "t"]);
+    git(dir, &["config", "user.email", "t@t"]);
+    git(dir, &["config", "protocol.file.allow", "always"]);
+
+    let upstream = tempfile::tempdir().unwrap();
+    git(upstream.path(), &["init", "-q", "-b", "main"]);
+    git(upstream.path(), &["config", "user.name", "t"]);
+    git(upstream.path(), &["config", "user.email", "t@t"]);
+    commit_file(upstream.path(), "lib.txt", "v1\n");
+    git(dir, &["-c", "protocol.file.allow=always", "submodule", "add", "-q", upstream.path().to_str().unwrap(), "libs/util"]);
+    git(&dir.join("libs/util"), &["config", "protocol.file.allow", "always"]);
+    git(dir, &["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "add submodule"]);
+
+    let (_, j) = get(&e.app, "/api/repos/demo/submodules").await;
+    let before = j["submodules"][0]["checkedOut"].as_str().unwrap().to_string();
+    assert_eq!(j["submodules"][0]["recorded"], before.as_str());
+    assert_eq!(j["submodules"][0]["initialized"], true);
+
+    commit_file(upstream.path(), "lib.txt", "v2\n");
+    let post = |p: &str| call(&e.app, "POST", "/api/repos/demo/submodules/update", &[], Some(json!({ "path": p })));
+    let (s, _, j, _) = post("libs/util").await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    let sub = &j["submodules"][0];
+    assert_ne!(sub["checkedOut"].as_str().unwrap(), before, "moved to the new commit");
+    assert_eq!(sub["recorded"], before.as_str(), "the project still records the old one until it is staged");
+    assert_eq!(std::fs::read_to_string(dir.join("libs/util/lib.txt")).unwrap(), "v2\n");
+
+    // the gitlink now shows as a change of the project
+    let (_, st) = get(&e.app, "/api/repos/demo/status").await;
+    assert!(st["unstaged"].as_array().unwrap().iter().any(|f| f["path"] == "libs/util"), "{st}");
+
+    for bad in ["nope", "../x", ""] {
+        let (s, ..) = post(bad).await;
+        assert!(s == StatusCode::NOT_FOUND || s == StatusCode::BAD_REQUEST, "{bad:?} -> {s}");
+    }
+}
+
+#[tokio::test]
+async fn single_lines_can_be_staged_and_unstaged() {
+    let e = env();
+    open_demo(&e).await;
+    let dir = e.repo.path();
+    std::fs::write(dir.join("lines.txt"), "one\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine\nten\n").unwrap();
+    git(dir, &["add", "lines.txt"]);
+    git(dir, &["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "lines"]);
+    // two edits far apart: two hunks
+    std::fs::write(dir.join("lines.txt"), "ONE\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine\nTEN\n").unwrap();
+
+    let post = |staged: bool, patch: String, lines: Vec<usize>| {
+        call(&e.app, "POST", "/api/repos/demo/stage-lines", &[], Some(json!({"path": "lines.txt", "staged": staged, "patch": patch, "lines": lines})))
+    };
+    let patch_of = |staged: bool| {
+        let app = e.app.clone();
+        async move {
+            let (_, j) = get(&app, &format!("/api/repos/demo/diff?path=lines.txt&staged={}", if staged { 1 } else { 0 })).await;
+            j["patch"].as_str().unwrap().to_string()
+        }
+    };
+
+    // lines: 0 "-one", 1 "+ONE", 2 "-ten", 3 "+TEN"; stage only the first edit
+    let p = patch_of(false).await;
+    let (s, _, j, _) = post(false, p.clone(), vec![0, 1]).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    let staged = patch_of(true).await;
+    assert!(staged.contains("+ONE") && !staged.contains("+TEN"), "{staged}");
+    let rest = patch_of(false).await;
+    assert!(rest.contains("+TEN") && !rest.contains("+ONE"), "{rest}");
+
+    // a stale diff is refused
+    let (s, ..) = post(false, p, vec![0]).await;
+    assert_eq!(s, StatusCode::CONFLICT);
+
+    // take just the added half of the staged edit back out: "-one" stays staged
+    let staged = patch_of(true).await;
+    let (s, _, j, _) = post(true, staged, vec![1]).await;
+    assert_eq!(s, StatusCode::OK, "{j}");
+    let staged = patch_of(true).await;
+    assert!(staged.contains("-one") && !staged.contains("+ONE"), "{staged}");
+
+    // nothing picked / a line that does not exist
+    let staged = patch_of(true).await;
+    let (s, ..) = post(true, staged.clone(), vec![]).await;
+    assert_eq!(s, StatusCode::BAD_REQUEST);
+    let (s, ..) = post(true, staged, vec![99]).await;
+    assert_eq!(s, StatusCode::BAD_REQUEST);
+    // the working copy was never touched
+    assert!(std::fs::read_to_string(dir.join("lines.txt")).unwrap().starts_with("ONE\n"));
+}

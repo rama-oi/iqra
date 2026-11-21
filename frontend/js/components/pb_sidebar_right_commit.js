@@ -1,7 +1,8 @@
 import { getPrefix, escapeHtml, icon } from "../lib/helpers.js";
 import { createCommit } from "../api/commits.js";
 import { fetchStatus } from "../api/changes.js";
-import { stage, unstage } from "../api/git.js";
+import { stage, unstage, discardChanges } from "../api/git.js";
+import { confirmModal } from "./pb_modal.js";
 import { toast } from "../lib/toast.js";
 import data, { setFile, isSelectedFile } from "../api/data.js";
 
@@ -22,6 +23,10 @@ customElements.define(
         </button>
         <button class="pb-btn pb-btn-outline pb-unstage-all" type="button" title="Unstage All files">
           Unstage All
+        </button>
+        <button class="pb-btn pb-btn-outline pb-discard-all" type="button"
+          title="Throw away every unstaged change">
+          Discard All
         </button>
 
         <hr>
@@ -78,9 +83,17 @@ customElements.define(
       this.querySelector(".pb-unstage-all").addEventListener("click", () =>
         this.#moveAll("staged"),
       );
+      this.querySelector(".pb-discard-all").addEventListener("click", () =>
+        this.#discard(null),
+      );
 
       this.addEventListener("click", (e) => {
         const action = e.target.closest("button[data-action]");
+        if (action?.dataset.action === "discard") {
+          return this.#discard(
+            this.#files.unstaged[action.dataset.index] ?? null,
+          );
+        }
         if (action) {
           return this.#move(action);
         }
@@ -110,6 +123,49 @@ customElements.define(
       const paths = this.#files[group].map((f) => f.path);
       if (!data.repository || !paths.length) return;
       await this.#run(group, paths);
+    }
+
+    // One unstaged file, or (null) every one of them. Nothing here can be undone, so it
+    // always asks first and says what will happen to new files.
+    async #discard(file) {
+      const repo = data.repository;
+      const files = file ? [file] : this.#files.unstaged;
+      if (!repo || !files.length) return;
+      const fresh = files.filter((f) => f.status === "A").length;
+      const conflicted = files.filter((f) => f.status === "U").length;
+      const lines = file
+        ? [
+            file.status === "A"
+              ? `Delete the new file "${file.path}"?`
+              : `Discard the changes in "${file.path}"?`,
+          ]
+        : [
+            `Discard the changes in all ${files.length} unstaged file${files.length === 1 ? "" : "s"}?`,
+          ];
+      if (fresh && !file) {
+        lines.push(
+          `${fresh} new file${fresh === 1 ? " is" : "s are"} not tracked by git and will be deleted.`,
+        );
+      }
+      if (conflicted && !file) {
+        lines.push(`${conflicted} conflicted file${conflicted === 1 ? "" : "s"} will be left alone.`);
+      }
+      lines.push("Staged changes are kept. This cannot be undone.");
+
+      const done = await confirmModal({
+        title: file ? "Discard changes" : "Discard all changes",
+        message: lines.join("\n"),
+        confirmLabel: file ? "Discard" : "Discard all",
+        danger: true,
+        action: () =>
+          discardChanges(
+            file ? { repo, paths: [file.path] } : { repo, all: true },
+          ),
+      });
+      if (done) {
+        toast(file ? `Discarded ${file.path}.` : "Discarded all unstaged changes.");
+      }
+      document.dispatchEvent(new CustomEvent("pb-changes-change"));
     }
 
     async #move(btn) {
@@ -191,10 +247,18 @@ customElements.define(
               <span class="pb-file-path">${escapeHtml(f.path)}</span>
             </button><button type="button" class="pb-file-action" data-action="move" data-group="${group}" data-index="${i}"
               aria-label="${group === "staged" ? "Unstage" : "Stage"} ${escapeHtml(f.path)}"
-              title="${group === "staged" ? "Unstage" : "Stage"}">${icon(group === "staged" ? "minus" : "plus")}</button></li>`,
+              title="${group === "staged" ? "Unstage" : "Stage"}">${icon(group === "staged" ? "minus" : "plus")}</button>${
+                group === "unstaged"
+                  ? `<button type="button" class="pb-file-action pb-danger" data-action="discard" data-group="unstaged" data-index="${i}"
+              aria-label="Discard ${escapeHtml(f.path)}" title="${f.status === "A" ? "Delete this new file" : "Discard the changes"}">${icon("trash")}</button>`
+                  : ""
+              }</li>`,
             )
             .join("")
         : `<li class="pb-empty">No files.</li>`;
+      if (group === "unstaged") {
+        this.querySelector(".pb-discard-all").disabled = !files.length;
+      }
     }
 
     #markSelected() {

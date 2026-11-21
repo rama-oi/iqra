@@ -218,3 +218,21 @@ export async function fetchSubmodules(repo) {
   if (!res.ok) throw new Error(`Failed to load submodules (${res.status})`);
   return (await res.json()).submodules;
 }
+
+export async function updateSubmodule(repo, path) {
+  if (USE_MOCK) {
+    await delay();
+    return [];
+  }
+  const res = await fetch(
+    `/api/repos/${encodeURIComponent(repo)}/submodules/update`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    },
+  );
+  const reply = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(reply.error || `Update failed (${res.status})`);
+  return reply.submodules;
+}

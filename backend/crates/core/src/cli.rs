@@ -5,7 +5,7 @@ use std::ffi::OsStr;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use crate::{Error, Result, validate_ssh_url};
+use crate::{Error, FileChange, Result, validate_ssh_url};
 
 /// The last lines of what git printed, which is where it says what went wrong.
 fn failure_text(stdout: &[u8], stderr: &[u8]) -> String {
@@ -258,6 +258,34 @@ fn git_in(repo: &Path) -> Command {
     cmd
 }
 
+/// Applies a patch to the index only (`git apply --cached`), optionally in reverse.
+pub(crate) fn apply_to_index(repo: &Path, patch: &str, reverse: bool) -> Result<()> {
+    use std::io::Write;
+    let mut cmd = git_in(repo);
+    cmd.args(["apply", "--cached", "--recount", "--whitespace=nowarn"]);
+    if reverse {
+        cmd.arg("--reverse");
+    }
+    cmd.arg("-")
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let mut child = cmd.spawn()?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(patch.as_bytes())?;
+    }
+    let out = child.wait_with_output()?;
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(Error::Conflict(format!(
+            "Those lines could not be applied, the file probably changed: {}",
+            failure_text(&out.stdout, &out.stderr)
+        )))
+    }
+}
+
 /// Adds the files to the index; a deleted file is staged as a deletion.
 pub fn stage(repo: &Path, paths: &[String]) -> Result<()> {
     check_paths(paths)?;
@@ -272,6 +300,40 @@ pub fn unstage(repo: &Path, paths: &[String]) -> Result<()> {
     let mut cmd = git_in(repo);
     cmd.args(["reset", "-q", "--"]).args(paths);
     run(cmd)
+}
+
+/// Throws away the unstaged changes of `files` (as `Repo::status` lists them): tracked
+/// files go back to what the index holds, new files that git does not track are
+/// deleted. Staged changes are not touched, and neither are conflicted files. This
+/// cannot be undone.
+pub fn discard(repo: &Path, files: &[FileChange]) -> Result<()> {
+    let tracked: Vec<&str> = files.iter().filter(|f| f.status != "A" && f.status != "U").map(|f| f.path.as_str()).collect();
+    let untracked: Vec<&str> = files.iter().filter(|f| f.status == "A").map(|f| f.path.as_str()).collect();
+    check_paths(&files.iter().map(|f| f.path.clone()).collect::<Vec<_>>())?;
+    for chunk in tracked.chunks(200) {
+        let mut cmd = git_in(repo);
+        cmd.args(["restore", "--worktree", "--"]).args(chunk);
+        run(cmd)?;
+    }
+    for chunk in untracked.chunks(200) {
+        let mut cmd = git_in(repo);
+        cmd.args(["clean", "-f", "-q", "--"]).args(chunk);
+        run(cmd)?;
+    }
+    Ok(())
+}
+
+/// Brings the submodule at `path` to the newest commit of the branch it follows on its
+/// remote (`git submodule update --init --remote`), cloning it first if it was never
+/// cloned. The project then records a new commit for it, which shows as a changed file.
+pub fn update_submodule(repo: &Path, path: &str, ssh: Ssh<'_>) -> Result<()> {
+    check_paths(&[path.to_string()])?;
+    run_remote(ssh, |ssh| {
+        let mut cmd = git_in(repo);
+        cmd.args(["submodule", "update", "--init", "--remote", "--"]).arg(path);
+        ssh_never_prompts(&mut cmd, ssh);
+        cmd
+    })
 }
 
 /// Sets the changes aside (new files too) and leaves a clean folder.

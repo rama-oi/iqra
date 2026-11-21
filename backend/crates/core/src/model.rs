@@ -127,4 +127,10 @@ pub struct Submodule {
     pub url: String,
     /// Whether its folder has been cloned (`git submodule update --init`).
     pub initialized: bool,
+    /// The branch `.gitmodules` asks to follow, if it names one.
+    pub branch: Option<String>,
+    /// Short hash of the commit this project records for it.
+    pub recorded: Option<String>,
+    /// Short hash of the commit that is checked out in its folder.
+    pub checked_out: Option<String>,
 }

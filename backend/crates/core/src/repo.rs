@@ -190,9 +190,13 @@ impl Repo {
             .map(|m| {
                 let path = m.path().to_string_lossy().into_owned();
                 let initialized = self.inner.workdir().is_some_and(|w| w.join(&path).join(".git").exists());
+                let short = |id: Option<Oid>| id.map(|i| i.to_string()[..7].to_string());
                 Submodule {
                     name: m.name().unwrap_or(&path).to_string(),
                     url: m.url().ok().flatten().map(str::to_string).unwrap_or_default(),
+                    branch: m.branch().ok().flatten().map(str::to_string),
+                    recorded: short(m.index_id().or_else(|| m.head_id())),
+                    checked_out: if initialized { short(m.workdir_id()) } else { None },
                     path,
                     initialized,
                 }

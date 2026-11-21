@@ -10,6 +10,7 @@ mod browse;
 mod cli;
 mod error;
 mod identities;
+mod lines;
 mod model;
 mod paths;
 mod registry;
@@ -18,8 +19,9 @@ mod ssh_url;
 mod time;
 
 pub use browse::{Folder, Listing, list_folders};
-pub use cli::{Ssh, MergeOutcome, checkout, checkout_remote, cherry_pick, create_branch, merge, delete_branch, delete_remote_branch, stash_drop, clone_ssh, commit, github_login, pull, push, stage, stash_pop, stash_push, unstage, write_ssh_config};
+pub use cli::{Ssh, MergeOutcome, checkout, checkout_remote, cherry_pick, discard, update_submodule, create_branch, merge, delete_branch, delete_remote_branch, stash_drop, clone_ssh, commit, github_login, pull, push, stage, stash_pop, stash_push, unstage, write_ssh_config};
 pub use error::{Error, Result};
+pub use lines::{apply_lines, changed_lines};
 pub use identities::{Identities, Identity, Profile};
 pub use model::*;
 pub use paths::{display_path, expand_tilde};

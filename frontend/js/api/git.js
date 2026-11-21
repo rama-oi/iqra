@@ -32,6 +32,25 @@ export async function unstage({ repo, paths }) {
   return post(repo, "unstage", { paths });
 }
 
+// Throw away unstaged changes for good: tracked files go back to the staged version,
+// new files are deleted. `all` takes every unstaged file.
+//   POST /api/repos/:repo/discard { paths } | { all: true } -> { discarded: n }
+export async function stageLines({ repo, path, staged, patch, lines }) {
+  if (MOCK.changes) {
+    await delay();
+    return {};
+  }
+  return post(repo, "stage-lines", { path, staged, patch, lines });
+}
+
+export async function discardChanges({ repo, paths, all = false }) {
+  if (MOCK.changes) {
+    await delay(100);
+    return { discarded: all ? 0 : paths.length };
+  }
+  return post(repo, "discard", all ? { all: true } : { paths });
+}
+
 export async function stashChanges({ repo, branch, message = "" }) {
   if (MOCK.changes) {
     await delay();

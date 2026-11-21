@@ -34,6 +34,7 @@ const data = {
   detached: false,
   area: "workarea",
   commit: null,
+  submodule: null,
   file: null,
   filter: "",
   identity: null,
@@ -77,8 +78,10 @@ function activate(tab) {
   data.branch = tab?.branch ?? null;
   data.detached = !!tab?.detached;
   data.commit = null;
+  data.submodule = null;
   clearFile();
   emit("pb-commit-select", null);
+  emit("pb-submodule-select", null);
   clearFilter();
   saveTabs();
   emit("pb-repository-change", data.repository);
@@ -149,7 +152,27 @@ export function setCommit(commit) {
   if ((commit?.hash ?? null) === (data.commit?.hash ?? null)) return;
   data.commit = commit;
   clearFile();
+  // a commit and a submodule never share the preview
+  if (commit && data.submodule) {
+    data.submodule = null;
+    emit("pb-submodule-select", null);
+  }
   emit("pb-commit-select", commit);
+}
+
+export function setSubmodule(submodule) {
+  submodule = submodule ?? null;
+  if ((submodule?.path ?? null) === (data.submodule?.path ?? null)) {
+    // same row again: keep it, but let the panel show fresh details
+    if (submodule) {
+      data.submodule = submodule;
+      emit("pb-submodule-select", submodule);
+    }
+    return;
+  }
+  data.submodule = submodule;
+  if (submodule && data.commit) setCommit(null);
+  emit("pb-submodule-select", submodule);
 }
 
 export function refreshCommit(commit) {
@@ -173,6 +196,7 @@ export function setFile(file) {
 
 export function goBack() {
   if (data.file) setFile(null);
+  else if (data.submodule) setSubmodule(null);
   else if (data.commit) setCommit(null);
   else return false;
   return true;
